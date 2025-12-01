@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import Header from "@/components/Header";
 import FloatingActionButton from "@/components/FloatingActionButton";
+import { Analytics } from "@vercel/analytics/next";
 
 // Optimized font loading with next/font
 // Fonts are automatically hosted on Vercel's edge network
@@ -39,6 +40,7 @@ export default function RootLayout({
           {children}
           <FloatingActionButton />
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
