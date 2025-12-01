@@ -5,6 +5,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import Header from "@/components/Header";
 import FloatingActionButton from "@/components/FloatingActionButton";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 // Optimized font loading with next/font
 // Fonts are automatically hosted on Vercel's edge network
@@ -41,6 +42,7 @@ export default function RootLayout({
           <FloatingActionButton />
         </AuthProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
