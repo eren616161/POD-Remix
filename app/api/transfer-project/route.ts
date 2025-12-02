@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { uploadBase64Image } from "@/lib/cloudflare";
 
 interface PendingVariant {
   id: number;
@@ -44,17 +43,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Upload original image to Cloudflare
-    let originalImageUrl = originalImage;
-    if (originalImage.startsWith('data:')) {
-      const uploadResult = await uploadBase64Image(
-        originalImage,
-        `projects/${user.id}/original-${Date.now()}.png`
-      );
-      if (uploadResult.success && uploadResult.url) {
-        originalImageUrl = uploadResult.url;
-      }
-    }
+    // Use the original image URL/data directly
+    const originalImageUrl = originalImage;
 
     // Generate project name if not provided
     const finalProjectName = projectName || `Design ${new Date().toLocaleDateString()}`;
@@ -78,33 +68,20 @@ export async function POST(request: Request) {
       );
     }
 
-    // Upload and save each variant
-    const variantInserts = await Promise.all(
-      variants.map(async (v, index) => {
-        let imageUrl = v.design.imageUrl || v.design.imageData;
-        
-        // Upload to Cloudflare if it's a base64 image
-        if (imageUrl.startsWith('data:')) {
-          const uploadResult = await uploadBase64Image(
-            imageUrl,
-            `projects/${user.id}/${project.id}/variant-${index + 1}-${Date.now()}.png`
-          );
-          if (uploadResult.success && uploadResult.url) {
-            imageUrl = uploadResult.url;
-          }
-        }
-
-        return {
-          project_id: project.id,
-          user_id: user.id,
-          variant_number: v.id,
-          batch_number: 1,
-          strategy: v.strategy,
-          image_url: imageUrl,
-          recommended_background: v.colorClassification?.recommendedBackground || 'light',
-        };
-      })
-    );
+    // Save each variant
+    const variantInserts = variants.map((v, index) => {
+      const imageUrl = v.design.imageUrl || v.design.imageData;
+      
+      return {
+        project_id: project.id,
+        user_id: user.id,
+        variant_number: v.id,
+        batch_number: 1,
+        strategy: v.strategy,
+        image_url: imageUrl,
+        recommended_background: v.colorClassification?.recommendedBackground || 'light',
+      };
+    });
 
     const { error: variantsError } = await supabase
       .from("variants")
@@ -127,4 +104,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
