@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import type { ProjectInsert, VariantInsert } from "@/lib/supabase/types";
 
 interface PendingVariant {
   id: number;
@@ -49,14 +50,16 @@ export async function POST(request: Request) {
     // Generate project name if not provided
     const finalProjectName = projectName || `Design ${new Date().toLocaleDateString()}`;
 
-    // Create project
+    // Create project with explicit type
+    const projectData: ProjectInsert = {
+      user_id: user.id,
+      name: finalProjectName,
+      original_image_url: originalImageUrl,
+    };
+
     const { data: project, error: projectError } = await supabase
       .from("projects")
-      .insert({
-        user_id: user.id,
-        name: finalProjectName,
-        original_image_url: originalImageUrl,
-      })
+      .insert(projectData)
       .select()
       .single();
 
@@ -68,8 +71,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Save each variant
-    const variantInserts = variants.map((v, index) => {
+    // Save each variant with explicit types
+    const variantInserts: VariantInsert[] = variants.map((v, index) => {
       const imageUrl = v.design.imageUrl || v.design.imageData;
       
       return {
