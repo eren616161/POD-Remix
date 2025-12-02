@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 interface PendingVariant {
@@ -21,7 +22,28 @@ interface TransferRequest {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
+    // Create untyped Supabase client to avoid type inference issues
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              );
+            } catch {
+              // Ignore
+            }
+          },
+        },
+      }
+    );
     
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -50,8 +72,7 @@ export async function POST(request: Request) {
     const finalProjectName = projectName || `Design ${new Date().toLocaleDateString()}`;
 
     // Create project
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: project, error: projectError } = await (supabase as any)
+    const { data: project, error: projectError } = await supabase
       .from("projects")
       .insert({
         user_id: user.id,
@@ -84,8 +105,7 @@ export async function POST(request: Request) {
       };
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: variantsError } = await (supabase as any)
+    const { error: variantsError } = await supabase
       .from("variants")
       .insert(variantInserts);
 
