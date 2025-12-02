@@ -228,7 +228,6 @@ function HomeContent() {
     setSelectedVariant(null);
     setAnalysis(null);
     setError(null);
-    setShowNotHappy(false);
     saveAttemptedRef.current = false;
     setSavedProjectId(null);
     setCurrentBatch(1);
