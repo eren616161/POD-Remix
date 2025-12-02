@@ -8,6 +8,14 @@ export const maxDuration = 300; // 5 minutes max
 
 const STORAGE_BUCKET = "design-images";
 
+// Type for variant returned from joined query
+interface VariantWithProject {
+  id: string;
+  image_url: string;
+  thumbnail_url: string | null;
+  project_id: string;
+}
+
 // Create a Supabase client with service role for storage operations
 const supabaseStorage = createSupabaseClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -63,14 +71,17 @@ export async function POST() {
       });
     }
 
-    console.log(`📊 Found ${variants.length} variants without thumbnails`);
+    // Cast to proper type
+    const typedVariants = variants as unknown as VariantWithProject[];
+
+    console.log(`📊 Found ${typedVariants.length} variants without thumbnails`);
 
     let processed = 0;
     let failed = 0;
     const errors: string[] = [];
 
     // Process variants in batches to avoid overwhelming the server
-    for (const variant of variants) {
+    for (const variant of typedVariants) {
       try {
         console.log(`Processing variant ${variant.id}...`);
 
