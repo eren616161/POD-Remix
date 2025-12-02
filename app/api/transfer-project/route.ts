@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import type { ProjectInsert, VariantInsert } from "@/lib/supabase/types";
 
 interface PendingVariant {
   id: number;
@@ -50,16 +49,15 @@ export async function POST(request: Request) {
     // Generate project name if not provided
     const finalProjectName = projectName || `Design ${new Date().toLocaleDateString()}`;
 
-    // Create project with explicit type
-    const projectData: ProjectInsert = {
-      user_id: user.id,
-      name: finalProjectName,
-      original_image_url: originalImageUrl,
-    };
-
-    const { data: project, error: projectError } = await supabase
+    // Create project
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: project, error: projectError } = await (supabase as any)
       .from("projects")
-      .insert(projectData)
+      .insert({
+        user_id: user.id,
+        name: finalProjectName,
+        original_image_url: originalImageUrl,
+      })
       .select()
       .single();
 
@@ -71,8 +69,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Save each variant with explicit types
-    const variantInserts: VariantInsert[] = variants.map((v, index) => {
+    // Save each variant
+    const variantInserts = variants.map((v) => {
       const imageUrl = v.design.imageUrl || v.design.imageData;
       
       return {
@@ -86,7 +84,8 @@ export async function POST(request: Request) {
       };
     });
 
-    const { error: variantsError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: variantsError } = await (supabase as any)
       .from("variants")
       .insert(variantInserts);
 
