@@ -116,11 +116,11 @@ export default function SaveDesignsCTA({ onSuccess, variant = "default", pending
                 w-full
                 pl-3 pr-16 py-2
                 text-sm
-                bg-gray-50 dark:bg-gray-800
-                text-gray-900 dark:text-gray-100
+                bg-secondary
+                text-foreground
                 border border-border
                 rounded-sm
-                focus:outline-none focus:border-primary
+                focus:outline-none focus:border-primary focus:bg-surface
                 placeholder:text-muted/60
                 transition-colors
               "
@@ -169,11 +169,11 @@ export default function SaveDesignsCTA({ onSuccess, variant = "default", pending
                   w-full
                   pl-3 pr-16 py-2
                   text-sm
-                  bg-gray-50 dark:bg-gray-800
-                  text-gray-900 dark:text-gray-100
+                  bg-secondary
+                  text-foreground
                   border border-border
                   rounded-sm
-                  focus:outline-none focus:border-primary
+                  focus:outline-none focus:border-primary focus:bg-surface
                   placeholder:text-muted/60
                   transition-colors
                 "

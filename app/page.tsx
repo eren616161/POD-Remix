@@ -20,6 +20,9 @@ import {
 } from "@/lib/usage-tracker";
 import { generateDownloadFileName, downloadImage } from "@/lib/download-utils";
 
+// Storage keys for cross-tab communication
+const TRANSFER_COMPLETED_KEY = "pod-remix-transfer-completed";
+
 // Lazy load DesignEditor - only loaded when user selects a variant to edit
 // This reduces initial bundle size significantly (600+ lines component)
 const DesignEditor = dynamic(
@@ -103,10 +106,44 @@ function HomeContent() {
     }
   }, [searchParams]);
 
+  // Check if a transfer was completed in another tab - clear state to prevent duplicates
+  useEffect(() => {
+    const checkTransferCompleted = () => {
+      const transferCompleted = localStorage.getItem(TRANSFER_COMPLETED_KEY);
+      if (transferCompleted && variants.length > 0) {
+        // A transfer was completed, clear local state to prevent duplicate saves
+        console.log('Transfer completed in another tab, clearing local state');
+        localStorage.removeItem(TRANSFER_COMPLETED_KEY);
+        handleReset();
+      }
+    };
+
+    // Check on mount
+    checkTransferCompleted();
+
+    // Listen for storage events from other tabs
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === TRANSFER_COMPLETED_KEY && e.newValue) {
+        checkTransferCompleted();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [variants.length]);
+
   // Auto-save project when variants are generated and user is logged in
   useEffect(() => {
     const autoSaveProject = async () => {
       if (saveAttemptedRef.current || state !== "complete" || variants.length === 0 || !user || !uploadPreview) {
+        return;
+      }
+
+      // Check if a transfer was just completed - don't duplicate save
+      const transferCompleted = localStorage.getItem(TRANSFER_COMPLETED_KEY);
+      if (transferCompleted) {
+        console.log('Transfer recently completed, skipping auto-save to prevent duplicates');
+        localStorage.removeItem(TRANSFER_COMPLETED_KEY);
         return;
       }
 

@@ -57,21 +57,16 @@ export default function SettingsPage() {
     <main className="min-h-[calc(100vh-4rem)] p-4 md:px-8 md:py-6">
       <div className="max-w-6xl mx-auto">
         {/* Header - Full width like nav */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/designs"
-              className="p-1.5 -ml-1.5 rounded hover:bg-accent/5 transition-all duration-200 text-muted hover:text-accent"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </Link>
-            <h1 className="text-xl font-bold text-foreground">Settings</h1>
-          </div>
-          <span className="px-2.5 py-1 bg-orange/15 text-orange text-xs font-semibold rounded">
-            {isPro ? "Pro" : "Free Plan"}
-          </span>
+        <div className="flex items-center gap-3 mb-6">
+          <Link
+            href="/designs"
+            className="p-1.5 -ml-1.5 rounded hover:bg-accent/5 transition-all duration-200 text-muted hover:text-accent"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <h1 className="text-xl font-bold text-foreground">Settings</h1>
         </div>
 
         {/* Grid Layout - 2 columns on desktop */}

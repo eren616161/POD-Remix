@@ -6,6 +6,7 @@ import { useAuth } from "@/components/AuthProvider";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 const PENDING_PROJECT_KEY = "pod-remix-pending-project";
+const TRANSFER_COMPLETED_KEY = "pod-remix-transfer-completed";
 
 export default function TransferPage() {
   const router = useRouter();
@@ -70,8 +71,10 @@ export default function TransferPage() {
           throw new Error(result.error || "Failed to transfer project");
         }
 
-        // Clear the pending project data
+        // Clear the pending project data and mark transfer as completed
         localStorage.removeItem(PENDING_PROJECT_KEY);
+        // Set a flag so other tabs know the transfer was completed
+        localStorage.setItem(TRANSFER_COMPLETED_KEY, Date.now().toString());
         
         setStatus("success");
         
