@@ -107,7 +107,7 @@ export default function TransferPage() {
     return (
       <main className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center space-y-4">
-          <LoadingSpinner message="Saving your designs..." subMessage="This will just take a moment" />
+          <LoadingSpinner message="Saving your designs..." />
         </div>
       </main>
     );
