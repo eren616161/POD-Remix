@@ -40,19 +40,16 @@ export async function POST() {
 
     console.log("🚀 Starting thumbnail backfill...");
 
-    // Fetch all variants without thumbnails for this user's projects
+    // Fetch all variants without thumbnails for this user (using direct user_id)
     const { data: variants, error: fetchError } = await supabase
       .from("variants")
       .select(`
         id,
         image_url,
         thumbnail_url,
-        project_id,
-        projects!inner (
-          user_id
-        )
+        project_id
       `)
-      .eq("projects.user_id", user.id)
+      .eq("user_id", user.id)
       .is("thumbnail_url", null);
 
     if (fetchError) {
@@ -124,7 +121,7 @@ export async function POST() {
         // Update database
         const { error: updateError } = await supabase
           .from("variants")
-          .update({ thumbnail_url: urlData.publicUrl })
+          .update({ thumbnail_url: urlData.publicUrl } as never)
           .eq("id", variant.id);
 
         if (updateError) {
@@ -178,18 +175,18 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Count variants without thumbnails
+    // Count variants without thumbnails (using direct user_id)
     const { count: needsThumbnails } = await supabase
       .from("variants")
-      .select("id, projects!inner(user_id)", { count: "exact", head: true })
-      .eq("projects.user_id", user.id)
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
       .is("thumbnail_url", null);
 
-    // Count total variants
+    // Count total variants (using direct user_id)
     const { count: totalVariants } = await supabase
       .from("variants")
-      .select("id, projects!inner(user_id)", { count: "exact", head: true })
-      .eq("projects.user_id", user.id);
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
 
     return NextResponse.json({
       needsThumbnails: needsThumbnails || 0,

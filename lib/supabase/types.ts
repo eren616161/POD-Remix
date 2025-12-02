@@ -59,6 +59,7 @@ export type Database = {
         Row: {
           id: string
           project_id: string
+          user_id: string
           variant_number: number
           batch_number: number
           strategy: string
@@ -71,6 +72,7 @@ export type Database = {
         Insert: {
           id?: string
           project_id: string
+          user_id?: string  // Optional - trigger will auto-fill from project
           variant_number: number
           batch_number?: number
           strategy: string
@@ -83,6 +85,7 @@ export type Database = {
         Update: {
           id?: string
           project_id?: string
+          user_id?: string
           variant_number?: number
           batch_number?: number
           strategy?: string

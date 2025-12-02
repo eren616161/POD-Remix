@@ -209,6 +209,7 @@ export async function saveProject({
     // 4. Insert variant records (batch_number defaults to 1 for initial generation)
     const variantRecords: VariantInsert[] = uploadedVariants.map((variant) => ({
       project_id: projectId,
+      user_id: userId,  // Include user_id for optimized RLS
       variant_number: variant.id,
       batch_number: 1,
       strategy: variant.strategy,
@@ -338,6 +339,7 @@ export async function saveRegeneratedVariants({
     // Insert variant records with the new batch number
     const variantRecords: VariantInsert[] = uploadedVariants.map((variant) => ({
       project_id: projectId,
+      user_id: userId,  // Include user_id for optimized RLS
       variant_number: variant.id,
       batch_number: batchNumber,
       strategy: variant.strategy,

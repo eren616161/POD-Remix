@@ -34,8 +34,9 @@ const DesignEditor = dynamic(
 type AppState = "idle" | "uploading" | "processing" | "complete" | "editing" | "error";
 
 interface DesignVersion {
-  imageData: string;  // Now contains URL from Supabase Storage (or base64 fallback)
-  imageUrl?: string;  // Explicit URL field (preferred)
+  imageData: string;
+  imageUrl?: string;
+  thumbnailUrl?: string;
   prompt: string;
 }
 

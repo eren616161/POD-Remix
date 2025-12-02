@@ -210,6 +210,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       const design = variant.design as { imageData: string; imageUrl?: string; thumbnailUrl?: string; prompt: string };
       return {
         project_id: projectId,
+        user_id: user.id,  // Include user_id for optimized RLS
         variant_number: variant.id,
         batch_number: nextBatchNumber,
         strategy: variant.strategy,
