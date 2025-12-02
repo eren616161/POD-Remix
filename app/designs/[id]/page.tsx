@@ -447,6 +447,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
                     src={project.original_image_url}
                     alt="Original design"
                     fill
+                    loading="lazy"
                     className="object-contain p-2"
                     sizes="192px"
                   />

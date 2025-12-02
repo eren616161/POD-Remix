@@ -36,9 +36,10 @@ interface ProjectCardProps {
     created_at: string;
     variants: Variant[];
   };
+  priority?: boolean;
 }
 
-export default function ProjectCard({ project }: ProjectCardProps) {
+export default function ProjectCard({ project, priority = false }: ProjectCardProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const variants = project.variants;
   const currentVariant = variants[currentIndex];
@@ -87,8 +88,10 @@ export default function ProjectCard({ project }: ProjectCardProps) {
               src={currentVariant.image_url}
               alt={`${project.name} - Variant ${currentIndex + 1}`}
               fill
+              loading={priority ? "eager" : "lazy"}
+              priority={priority}
               className="object-contain p-6 transition-opacity duration-300"
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 250px"
             />
           </Link>
         ) : (

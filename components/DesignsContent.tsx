@@ -143,9 +143,9 @@ export default function DesignsContent({ initialProjects }: DesignsContentProps)
           ? "grid grid-cols-2 lg:grid-cols-4 gap-4"
           : "space-y-4"
       }>
-        {projects.map((project) => (
+        {projects.map((project, index) => (
           viewMode === "grid" ? (
-            <ProjectCard key={project.id} project={project} />
+            <ProjectCard key={project.id} project={project} priority={index < 4} />
           ) : (
             <ProjectListItem key={project.id} project={project} />
           )
@@ -172,6 +172,7 @@ function ProjectListItem({ project }: { project: Project }) {
           src={project.original_image_url}
           alt={project.name}
           fill
+          loading="lazy"
           className="object-cover"
           sizes="64px"
         />

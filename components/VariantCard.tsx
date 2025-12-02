@@ -127,6 +127,7 @@ export default function VariantCard({
           src={variant.image_url}
           alt={variant.strategy}
           fill
+          loading="lazy"
           className="object-contain p-3 transition-transform duration-200 group-hover:scale-105"
           sizes="(max-width: 640px) 50vw, 25vw"
         />
