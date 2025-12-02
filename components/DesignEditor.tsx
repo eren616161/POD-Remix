@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import SaveDesignsCTA from "@/components/SaveDesignsCTA";
+import { generateDownloadFileName } from "@/lib/download-utils";
 
 // ============================================================================
 // Types
@@ -342,12 +343,14 @@ export default function DesignEditor({ variant, urlVariant, mockupType, onSave, 
 
       const data = await response.json();
 
-      // Generate download filename
-      // Format: {DesignName} - V{BatchNumber}, {Strategy}, {Preset}.png
-      const safeName = (designName || "Design").replace(/[^a-zA-Z0-9\s-]/g, '').trim();
-      const safeStrategy = strategy.replace(/[^a-zA-Z0-9\s-]/g, '').trim();
-      const presetName = currentPreset.name;
-      const filename = `${safeName} - V${actualBatchNumber}, ${safeStrategy}, ${presetName}.png`;
+      // Generate download filename using standardized naming
+      const filename = generateDownloadFileName({
+        designName: designName || 'Design',
+        batchNumber: actualBatchNumber,
+        variantNumber: variantId as number,
+        strategy: strategy,
+        style: currentPreset.name
+      });
 
       // Trigger download
       const link = document.createElement("a");

@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 
 interface LoadingSpinnerProps {
   message?: string;
-  subMessage?: string;
   imagePreview?: string;
   estimatedTime?: number; // in seconds
 }
@@ -20,22 +19,21 @@ const tips = [
 
 // Analysis steps shown during processing
 const analysisSteps = [
-  { label: "Analyzing colors...", duration: 3 },
-  { label: "Detecting style...", duration: 3 },
-  { label: "Finding patterns...", duration: 3 },
-  { label: "Generating variations...", duration: 12 },
+  { label: "Analyzing colors", duration: 3 },
+  { label: "Detecting style", duration: 3 },
+  { label: "Finding patterns", duration: 3 },
+  { label: "Generating variations", duration: 12 },
 ];
 
 export default function LoadingSpinner({
   message = "Analyzing and generating 4 variants...",
-  subMessage,
   imagePreview,
   estimatedTime = 20,
 }: LoadingSpinnerProps) {
   const [tipIndex, setTipIndex] = useState(0);
-  const [timeRemaining, setTimeRemaining] = useState(estimatedTime);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0);
 
   // Rotate tips every 5 seconds
   useEffect(() => {
@@ -45,43 +43,41 @@ export default function LoadingSpinner({
     return () => clearInterval(interval);
   }, []);
 
-  // Countdown timer
+  // Track elapsed time
   useEffect(() => {
     const interval = setInterval(() => {
-      setTimeRemaining((prev) => Math.max(0, prev - 1));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Progress bar animation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        const target = ((estimatedTime - timeRemaining) / estimatedTime) * 100;
-        // Smooth progress that slows down near the end
-        const newProgress = Math.min(95, prev + (target - prev) * 0.1 + 0.5);
-        return newProgress;
-      });
+      setElapsedTime((prev) => prev + 0.1);
     }, 100);
     return () => clearInterval(interval);
-  }, [timeRemaining, estimatedTime]);
-
-  // Cycle through analysis steps
-  useEffect(() => {
-    let elapsed = 0;
-    const interval = setInterval(() => {
-      elapsed += 1;
-      let accumulatedTime = 0;
-      for (let i = 0; i < analysisSteps.length; i++) {
-        accumulatedTime += analysisSteps[i].duration;
-        if (elapsed < accumulatedTime) {
-          setCurrentStepIndex(i);
-          break;
-        }
-      }
-    }, 1000);
-    return () => clearInterval(interval);
   }, []);
+
+  // Progress bar animation - time-based with easing
+  useEffect(() => {
+    // Use an easing function for smooth, natural progress
+    // Progress accelerates at start, slows near end (never reaches 100%)
+    const rawProgress = elapsedTime / estimatedTime;
+    // Ease-out cubic: accelerates then decelerates, caps at 95%
+    const easedProgress = rawProgress < 1 
+      ? (1 - Math.pow(1 - rawProgress, 3)) * 95
+      : 95 + (rawProgress - 1) * 0.5; // Very slow creep after estimated time
+    
+    setProgress(Math.min(98, easedProgress));
+  }, [elapsedTime, estimatedTime]);
+
+  // Cycle through analysis steps based on time
+  useEffect(() => {
+    let accumulatedTime = 0;
+    for (let i = 0; i < analysisSteps.length; i++) {
+      accumulatedTime += analysisSteps[i].duration;
+      if (elapsedTime < accumulatedTime) {
+        setCurrentStepIndex(i);
+        break;
+      }
+      if (i === analysisSteps.length - 1) {
+        setCurrentStepIndex(i);
+      }
+    }
+  }, [elapsedTime]);
 
   const currentTip = tips[tipIndex];
 
@@ -91,10 +87,10 @@ export default function LoadingSpinner({
       <div className="relative bg-surface rounded p-6 md:p-8 shadow-xl text-center max-w-lg w-full overflow-hidden border border-orange/20">
         
         {/* Content wrapper */}
-        <div className="relative z-10">
+        <div className="relative z-10 space-y-1">
           {/* AI Analysis Visualization */}
           {imagePreview && (
-            <div className="relative w-40 h-40 md:w-48 md:h-48 mx-auto mb-8">
+            <div className="relative w-40 h-40 md:w-48 md:h-48 mx-auto mb-6">
               {/* Image Preview */}
               <div className="relative w-full h-full rounded-lg overflow-hidden shadow-2xl border-2 border-accent/20">
                 <img
@@ -132,7 +128,7 @@ export default function LoadingSpinner({
 
           {/* Spinner (shown when no preview) - solid accent color */}
           {!imagePreview && (
-            <div className="relative w-24 h-24 mx-auto mb-8">
+            <div className="relative w-24 h-24 mx-auto mb-1">
               <div className="absolute inset-0 border-4 border-secondary rounded-full"></div>
               <div
                 className="absolute inset-0 rounded-full animate-spin border-4 border-transparent border-t-accent"
@@ -144,31 +140,28 @@ export default function LoadingSpinner({
           )}
 
           {/* Message */}
-          <h2 className="text-xl font-bold mb-2 text-foreground">{message}</h2>
+          <h2 className="text-xl font-bold text-foreground">{message}</h2>
 
-          {/* Countdown Timer */}
-          <div className="mb-5">
-            <p className="text-3xl font-bold mb-1">
-              <span className="text-accent">~{timeRemaining}s</span>
-              <span className="text-sm font-normal text-muted ml-2">remaining</span>
-            </p>
-            <p className="text-xs text-muted">{subMessage || "Faster than making coffee ☕"}</p>
-          </div>
+          {/* Sub message */}
+          <p className="text-sm text-muted">This usually takes 15-30 seconds</p>
 
-          {/* Progress Bar - solid accent color */}
-          <div className="w-full h-2.5 bg-secondary rounded-full overflow-hidden mb-6">
-            <div
-              className="h-full rounded-full transition-all duration-300 bg-accent"
-              style={{ width: `${progress}%` }}
-            />
+          {/* Progress Bar - Time-based with percentage */}
+          <div className="space-y-1">
+            <div className="w-full h-2.5 bg-secondary rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-300 ease-out bg-orange"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted text-right">{Math.round(progress)}%</p>
           </div>
 
           {/* Progress Steps */}
-          <div className="space-y-2.5 text-left mb-6">
+          <div className="space-y-1 text-left">
             {analysisSteps.map((step, index) => (
               <ProgressStep
                 key={step.label}
-                label={step.label.replace("...", "")}
+                label={step.label}
                 isActive={index === currentStepIndex}
                 isComplete={index < currentStepIndex}
               />
@@ -187,7 +180,7 @@ export default function LoadingSpinner({
           </div>
 
           {/* Tip indicator dots */}
-          <div className="flex justify-center gap-2 mt-4">
+          <div className="flex justify-center gap-1">
             {tips.map((_, index) => (
               <div
                 key={index}
@@ -213,7 +206,7 @@ interface ProgressStepProps {
 
 function ProgressStep({ label, isActive, isComplete }: ProgressStepProps) {
   return (
-    <div className="flex items-center gap-3 text-sm">
+    <div className="flex items-center gap-2 text-sm">
       <div
         className={`
           w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0

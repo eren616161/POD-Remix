@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { generateDownloadFileName, downloadImage } from "@/lib/download-utils";
 
 interface DesignVersion {
   imageData: string;
@@ -24,7 +25,7 @@ interface RemixGalleryProps {
   variants: Variant[];
   onSelect?: (variant: Variant | null) => void;
   onEdit?: (variant: Variant) => void;
-  onDownload?: (variant: Variant) => void;
+  onDownload?: (variant: Variant) => void | Promise<void>;
 }
 
 export default function RemixGallery({ variants, onEdit, onDownload }: RemixGalleryProps) {
@@ -174,7 +175,7 @@ const getDotPatternStyle = (isDark: boolean): React.CSSProperties => ({
 interface VariantCardProps {
   variant: Variant;
   onEdit?: (variant: Variant) => void;
-  onDownload?: (variant: Variant) => void;
+  onDownload?: (variant: Variant) => void | Promise<void>;
 }
 
 function VariantCard({ variant, onEdit, onDownload }: VariantCardProps) {
@@ -196,16 +197,19 @@ function VariantCard({ variant, onEdit, onDownload }: VariantCardProps) {
     setIsDownloading(true);
     try {
       if (onDownload) {
-        onDownload(variant);
+        await onDownload(variant);
       } else {
-        // Default download behavior
+        // Default download behavior using standardized naming
         const imageUrl = variant.design.imageUrl || variant.design.imageData;
-        const link = document.createElement('a');
-        link.href = imageUrl;
-        link.download = `variant-${variant.id}-${variant.strategy.toLowerCase().replace(/\s+/g, '-')}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const filename = generateDownloadFileName({
+          designName: 'POD_Remix',
+          batchNumber: 1,
+          variantNumber: variant.id,
+          strategy: variant.strategy,
+          style: 'Original'
+        });
+        
+        await downloadImage(imageUrl, filename);
       }
     } catch (error) {
       console.error('Download error:', error);
@@ -214,9 +218,7 @@ function VariantCard({ variant, onEdit, onDownload }: VariantCardProps) {
     }
   };
 
-  const handleEdit = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleCardClick = () => {
     if (onEdit) {
       onEdit(variant);
     }
@@ -224,9 +226,10 @@ function VariantCard({ variant, onEdit, onDownload }: VariantCardProps) {
 
   return (
     <div
-      className="bg-white rounded-sm overflow-hidden shadow-sm border border-border group transition-all duration-200 hover:shadow-md hover:ring-1 hover:ring-accent/20 hover:-translate-y-0.5"
+      onClick={handleCardClick}
+      className="bg-white dark:bg-gray-800 rounded-sm overflow-hidden shadow-sm border border-border group transition-all duration-200 hover:shadow-md hover:ring-1 hover:ring-accent/20 hover:-translate-y-0.5 cursor-pointer"
     >
-      {/* Image - Square */}
+      {/* Image - Square - Clickable */}
       <div 
         className={`aspect-square ${bgClass} relative overflow-hidden`}
         style={getDotPatternStyle(isDarkBg)}
@@ -234,7 +237,7 @@ function VariantCard({ variant, onEdit, onDownload }: VariantCardProps) {
         <img
           src={variant.design.imageUrl || variant.design.imageData}
           alt={`Variant ${variant.id}: ${variant.strategy}`}
-          className="w-full h-full object-contain p-6"
+          className="w-full h-full object-contain p-6 transition-transform duration-200 group-hover:scale-105"
           loading="lazy"
           onError={(e) => {
             e.preventDefault();
@@ -244,9 +247,9 @@ function VariantCard({ variant, onEdit, onDownload }: VariantCardProps) {
       </div>
 
       {/* Card Footer - Matching VariantCard layout */}
-      <div className="px-3 py-2 flex items-center justify-between bg-white">
+      <div className="px-3 py-2 flex items-center justify-between bg-white dark:bg-gray-800">
         {/* Strategy Name as Title */}
-        <h3 className="text-sm font-semibold text-foreground truncate pr-2">{variant.strategy}</h3>
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate pr-2">{variant.strategy}</h3>
         
         <div className="flex items-center gap-1.5">
           {/* Download Button - ghost style */}
@@ -270,7 +273,10 @@ function VariantCard({ variant, onEdit, onDownload }: VariantCardProps) {
           
           {/* Edit Button - Primary accent style */}
           <button
-            onClick={handleEdit}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onEdit) onEdit(variant);
+            }}
             className="px-3 h-7 bg-accent text-white text-xs font-medium rounded-sm shadow-cyan-glow hover:shadow-cyan-glow-hover hover:bg-accent/90 active:scale-[0.98] transition-all duration-200 flex items-center"
           >
             Edit

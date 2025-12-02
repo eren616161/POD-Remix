@@ -7,7 +7,23 @@ import ProjectCard from "@/components/ProjectCard";
 import LibraryControls, { FilterOption, ViewMode } from "@/components/LibraryControls";
 import Toast from "@/components/Toast";
 
-const FAVORITES_STORAGE_KEY = "pod-remix-favorites";
+const VARIANT_FAVORITES_STORAGE_KEY = "pod-remix-variant-favorites";
+
+// 4 distinct background colors - T-shirt simulation (POD product colors)
+const variantBackgrounds = {
+  dark: ['bg-black', 'bg-gray-800', 'bg-slate-700', 'bg-zinc-800'],
+  light: ['bg-white', 'bg-gray-100', 'bg-neutral-100', 'bg-stone-50'],
+};
+
+// Dot pattern styles for canvas texture effect
+const getDotPatternStyle = (isDark: boolean): React.CSSProperties => ({
+  backgroundImage: `radial-gradient(circle, ${
+    isDark 
+      ? 'rgba(255, 255, 255, 0.15)' // Light dots on dark bg
+      : 'rgba(0, 0, 0, 0.08)'        // Dark dots on light bg
+  } 1px, transparent 1px)`,
+  backgroundSize: '12px 12px',
+});
 
 interface Variant {
   id: string;
@@ -59,52 +75,50 @@ export default function DesignsContent({ initialProjects }: DesignsContentProps)
   const [projects] = useState<Project[]>(initialProjects);
   const [filterBy, setFilterBy] = useState<FilterOption>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [variantFavorites, setVariantFavorites] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
 
-  // Load favorites from localStorage on mount
+  // Load variant favorites from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem(FAVORITES_STORAGE_KEY);
+    const stored = localStorage.getItem(VARIANT_FAVORITES_STORAGE_KEY);
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        setFavorites(new Set(parsed));
+        setVariantFavorites(new Set(parsed));
       } catch (e) {
-        console.error("Failed to parse favorites:", e);
+        console.error("Failed to parse variant favorites:", e);
       }
     }
   }, []);
-
-  // Save favorites to localStorage when they change
-  const saveFavorites = (newFavorites: Set<string>) => {
-    setFavorites(newFavorites);
-    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...newFavorites]));
-  };
-
-  const toggleFavorite = (projectId: string) => {
-    const newFavorites = new Set(favorites);
-    const isAdding = !newFavorites.has(projectId);
-    
-    if (isAdding) {
-      newFavorites.add(projectId);
-      setToast({ message: "Added to favorites ⭐", type: "success" });
-    } else {
-      newFavorites.delete(projectId);
-      setToast({ message: "Removed from favorites", type: "info" });
-    }
-    saveFavorites(newFavorites);
-  };
 
   // Client-side filtering
   const handleFilterChange = (newFilterBy: FilterOption) => {
     setFilterBy(newFilterBy);
   };
 
+  // Get all favorited variants across all projects
+  const getFavoritedVariants = (): Array<Variant & { projectId: string; projectName: string }> => {
+    const result: Array<Variant & { projectId: string; projectName: string }> = [];
+    for (const project of projects) {
+      for (const variant of project.variants) {
+        if (variantFavorites.has(variant.id)) {
+          result.push({
+            ...variant,
+            projectId: project.id,
+            projectName: project.name,
+          });
+        }
+      }
+    }
+    return result;
+  };
+
   // Get filtered projects - sorted by newest first by default
-  const filteredProjects = (filterBy === "favorites" 
-    ? projects.filter(p => favorites.has(p.id))
-    : projects
-  ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const filteredProjects = projects.sort((a, b) => 
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  const favoritedVariants = getFavoritedVariants();
 
   if (projects.length === 0) {
     return (
@@ -160,7 +174,7 @@ export default function DesignsContent({ initialProjects }: DesignsContentProps)
   }
 
   // Empty state for favorites filter
-  if (filterBy === "favorites" && filteredProjects.length === 0) {
+  if (filterBy === "favorites" && favoritedVariants.length === 0) {
     return (
       <>
         <LibraryControls
@@ -178,7 +192,7 @@ export default function DesignsContent({ initialProjects }: DesignsContentProps)
           </div>
           <h2 className="text-xl font-bold mb-2">No favorites yet</h2>
           <p className="text-muted text-center max-w-md mb-6">
-            Click the star icon on any project to add it to your favorites for quick access.
+            Click the star icon on any variant in a project to add it to your favorites for quick access.
           </p>
           <button
             onClick={() => setFilterBy("all")}
@@ -187,6 +201,43 @@ export default function DesignsContent({ initialProjects }: DesignsContentProps)
             View All Projects
           </button>
         </div>
+        {/* Toast Notification */}
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+      </>
+    );
+  }
+
+  // Show favorited variants
+  if (filterBy === "favorites") {
+    return (
+      <>
+        {/* Controls */}
+        <LibraryControls
+          filterBy={filterBy}
+          viewMode={viewMode}
+          onFilterChange={handleFilterChange}
+          onViewModeChange={setViewMode}
+          totalCount={favoritedVariants.length}
+        />
+
+        {/* Favorited Variants Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {favoritedVariants.map((variant) => (
+            <FavoriteVariantCard
+              key={variant.id}
+              variant={variant}
+              projectId={variant.projectId}
+              projectName={variant.projectName}
+            />
+          ))}
+        </div>
+
         {/* Toast Notification */}
         {toast && (
           <Toast
@@ -222,15 +273,11 @@ export default function DesignsContent({ initialProjects }: DesignsContentProps)
               key={project.id} 
               project={project} 
               priority={index < 4}
-              isFavorite={favorites.has(project.id)}
-              onFavoriteToggle={toggleFavorite}
             />
           ) : (
             <ProjectListItem 
               key={project.id} 
               project={project}
-              isFavorite={favorites.has(project.id)}
-              onFavoriteToggle={toggleFavorite}
             />
           )
         ))}
@@ -248,22 +295,67 @@ export default function DesignsContent({ initialProjects }: DesignsContentProps)
   );
 }
 
+// Favorite Variant Card - Links directly to editor
+function FavoriteVariantCard({ 
+  variant,
+  projectId,
+  projectName,
+}: { 
+  variant: Variant;
+  projectId: string;
+  projectName: string;
+}) {
+  const isDarkBg = variant.recommended_background === 'dark';
+  const bgIndex = (variant.variant_number - 1) % 4;
+  const bgClass = variantBackgrounds[isDarkBg ? 'dark' : 'light'][bgIndex];
+
+  return (
+    <Link
+      href={`/designs/${projectId}/edit/${variant.id}`}
+      className="group block bg-surface rounded-sm overflow-hidden shadow-sm hover:shadow-md hover:ring-1 hover:ring-accent/20 hover:-translate-y-0.5 transition-all duration-200 border border-border"
+    >
+      {/* Thumbnail */}
+      <div 
+        className={`aspect-square ${bgClass} relative overflow-hidden`}
+        style={getDotPatternStyle(isDarkBg)}
+      >
+        <Image
+          src={variant.thumbnail_url || variant.image_url}
+          alt={variant.strategy}
+          fill
+          loading="lazy"
+          className="object-contain p-6 transition-transform duration-200 group-hover:scale-105"
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 250px"
+        />
+        
+        {/* Favorite indicator */}
+        <div className="absolute top-2 right-2">
+          <svg 
+            className="w-4 h-4 text-orange drop-shadow-sm" 
+            fill="currentColor"
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+          </svg>
+        </div>
+      </div>
+
+      {/* Card Footer */}
+      <div className="px-3 py-2 bg-surface">
+        <h3 className="text-sm font-semibold text-foreground truncate">{variant.strategy}</h3>
+        <p className="text-xs text-muted truncate">{projectName}</p>
+      </div>
+    </Link>
+  );
+}
+
 // List view item component
 function ProjectListItem({ 
-  project, 
-  isFavorite, 
-  onFavoriteToggle 
+  project 
 }: { 
   project: Project; 
-  isFavorite?: boolean;
-  onFavoriteToggle?: (projectId: string) => void;
 }) {
-  const handleFavoriteClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onFavoriteToggle?.(project.id);
-  };
-
   return (
     <Link
       href={`/designs/${project.id}`}
@@ -290,29 +382,6 @@ function ProjectListItem({
           {new Date(project.created_at).toLocaleDateString()} • {project.variants?.length || 0} variants
         </p>
       </div>
-      {/* Favorite Button */}
-      {onFavoriteToggle && (
-        <button
-          onClick={handleFavoriteClick}
-          className={`
-            p-2 rounded transition-all duration-200
-            ${isFavorite 
-              ? 'text-orange' 
-              : 'text-muted hover:text-orange opacity-0 group-hover:opacity-100'
-            }
-          `}
-          title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-        >
-          <svg 
-            className="w-5 h-5" 
-            fill={isFavorite ? 'currentColor' : 'none'}
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-          </svg>
-        </button>
-      )}
       <svg className="w-5 h-5 text-muted group-hover:text-accent transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
       </svg>

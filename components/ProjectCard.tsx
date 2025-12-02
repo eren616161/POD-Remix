@@ -38,11 +38,9 @@ interface ProjectCardProps {
     variants: Variant[];
   };
   priority?: boolean;
-  isFavorite?: boolean;
-  onFavoriteToggle?: (projectId: string) => void;
 }
 
-export default function ProjectCard({ project, priority = false, isFavorite = false, onFavoriteToggle }: ProjectCardProps) {
+export default function ProjectCard({ project, priority = false }: ProjectCardProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const variants = project.variants;
   const currentVariant = variants[currentIndex];
@@ -59,11 +57,6 @@ export default function ProjectCard({ project, priority = false, isFavorite = fa
   const counterBg = isDarkBg ? 'bg-white/80' : 'bg-gray-600/60';
   const counterText = isDarkBg ? 'text-gray-700' : 'text-white';
   
-  const handleFavoriteClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onFavoriteToggle?.(project.id);
-  };
   
   const goToPrevious = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -175,29 +168,6 @@ export default function ProjectCard({ project, priority = false, isFavorite = fa
             </h3>
           </Link>
           <div className="flex items-center gap-1">
-            {/* Favorite Button */}
-            {onFavoriteToggle && (
-              <button
-                onClick={handleFavoriteClick}
-                className={`
-                  p-1 rounded transition-all duration-200
-                  ${isFavorite 
-                    ? 'text-orange' 
-                    : 'text-muted hover:text-orange opacity-0 group-hover:opacity-100'
-                  }
-                `}
-                title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-              >
-                <svg 
-                  className="w-4 h-4" 
-                  fill={isFavorite ? 'currentColor' : 'none'}
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                </svg>
-              </button>
-            )}
             {/* Clickable indicator - light green bg, dark green arrow */}
             <Link 
               href={`/designs/${project.id}`}

@@ -469,9 +469,9 @@ export default function UploadSection({
               placeholder="https://..."
               className={`
                 w-full px-3 py-2.5 pr-14 rounded text-sm
-                bg-secondary/50 border
-                text-foreground placeholder:text-muted/50
-                focus:outline-none focus:ring-2 focus:ring-accent/20 focus:bg-surface
+                bg-gray-50 dark:bg-gray-800 border
+                text-gray-900 dark:text-gray-100 placeholder:text-muted/60
+                focus:outline-none focus:ring-2 focus:ring-accent/20 focus:bg-white dark:focus:bg-gray-700
                 transition-all duration-200
                 ${urlError 
                   ? "border-destructive focus:border-destructive" 

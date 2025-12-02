@@ -10,6 +10,7 @@ import VariantCard from "@/components/VariantCard";
 import Toast from "@/components/Toast";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useAuth } from "@/components/AuthProvider";
+import { generateDownloadFileName, downloadImage } from "@/lib/download-utils";
 
 interface Variant {
   id: string;
@@ -135,14 +136,37 @@ export default function ProjectDetailPage({ params }: PageProps) {
     setSelectedVariants(new Set());
   };
 
+  const VARIANT_FAVORITES_STORAGE_KEY = "pod-remix-variant-favorites";
+
+  // Load favorites from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(VARIANT_FAVORITES_STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setFavorites(new Set(parsed));
+      } catch (e) {
+        console.error("Failed to parse variant favorites:", e);
+      }
+    }
+  }, []);
+
   const handleFavoriteToggle = (variantId: string) => {
     setFavorites(prev => {
       const next = new Set(prev);
-      if (next.has(variantId)) {
-        next.delete(variantId);
-      } else {
+      const isAdding = !next.has(variantId);
+      
+      if (isAdding) {
         next.add(variantId);
+        setToast({ message: "Added to favorites ⭐", type: "success" });
+      } else {
+        next.delete(variantId);
+        setToast({ message: "Removed from favorites", type: "info" });
       }
+      
+      // Save to localStorage
+      localStorage.setItem(VARIANT_FAVORITES_STORAGE_KEY, JSON.stringify([...next]));
+      
       return next;
     });
   };
@@ -154,17 +178,15 @@ export default function ProjectDetailPage({ params }: PageProps) {
     
     for (const variant of variantsToDownload) {
       try {
-        const response = await fetch(variant.image_url);
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
+        const filename = generateDownloadFileName({
+          designName: project.name,
+          batchNumber: variant.batch_number || 1,
+          variantNumber: variant.variant_number,
+          strategy: variant.strategy,
+          style: 'Original'
+        });
         
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `variant-${variant.variant_number}-${variant.strategy.toLowerCase().replace(/\s+/g, '-')}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        await downloadImage(variant.image_url, filename);
         
         // Small delay between downloads
         await new Promise(resolve => setTimeout(resolve, 200));
@@ -527,6 +549,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
                   key={variant.id}
                   variant={variant}
                   projectId={project.id}
+                  designName={project.name}
                   isSelectionMode={isSelectionMode}
                   isSelected={selectedVariants.has(variant.id)}
                   onSelectionChange={handleSelectionChange}

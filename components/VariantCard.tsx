@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { generateDownloadFileName, downloadImage } from "@/lib/download-utils";
 
 // 4 distinct background colors - T-shirt simulation (POD product colors)
 const variantBackgrounds = {
@@ -24,12 +25,14 @@ interface VariantCardProps {
   variant: {
     id: string;
     variant_number: number;
+    batch_number?: number;
     strategy: string;
     image_url: string;
     thumbnail_url?: string | null;
     recommended_background: 'light' | 'dark';
   };
   projectId: string;
+  designName?: string;
   isSelectionMode?: boolean;
   isSelected?: boolean;
   onSelectionChange?: (variantId: string, selected: boolean) => void;
@@ -40,6 +43,7 @@ interface VariantCardProps {
 export default function VariantCard({
   variant,
   projectId,
+  designName,
   isSelectionMode = false,
   isSelected = false,
   onSelectionChange,
@@ -65,17 +69,15 @@ export default function VariantCard({
     
     setIsDownloading(true);
     try {
-      const response = await fetch(variant.image_url);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
+      const filename = generateDownloadFileName({
+        designName: designName || 'Design',
+        batchNumber: variant.batch_number || 1,
+        variantNumber: variant.variant_number,
+        strategy: variant.strategy,
+        style: 'Original'
+      });
       
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `variant-${variant.variant_number}-${variant.strategy.toLowerCase().replace(/\s+/g, '-')}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      await downloadImage(variant.image_url, filename);
     } catch (error) {
       console.error('Download error:', error);
     } finally {

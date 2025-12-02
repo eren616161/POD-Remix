@@ -13,7 +13,7 @@ interface UsageData {
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, isLoading, signOut } = useAuth();
+  const { user, isLoading } = useAuth();
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [loadingUsage, setLoadingUsage] = useState(true);
 
@@ -87,17 +87,16 @@ export default function SettingsPage() {
               <h2 className="text-sm font-semibold text-foreground">Account</h2>
             </div>
             <p className="text-xs text-muted mb-1">Email</p>
-            <p className="text-sm font-medium text-foreground truncate mb-4">{user.email}</p>
+            <p className="text-sm font-medium text-foreground truncate mb-3">{user.email}</p>
+            
+            {/* Current Plan Tag */}
             <div className="mt-auto">
-              <button
-                onClick={async () => {
-                  await signOut();
-                  router.push("/");
-                }}
-                className="w-full py-2 px-3 text-sm font-medium text-destructive bg-destructive/10 hover:bg-destructive/20 rounded transition-colors"
-              >
-                Sign Out
-              </button>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-semibold rounded">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Current Plan: {isPro ? "Pro" : "Free"}
+              </span>
             </div>
           </div>
 

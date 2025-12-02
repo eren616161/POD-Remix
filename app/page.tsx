@@ -18,6 +18,7 @@ import {
   hasReachedLimit,
   getDailyLimit 
 } from "@/lib/usage-tracker";
+import { generateDownloadFileName, downloadImage } from "@/lib/download-utils";
 
 // Lazy load DesignEditor - only loaded when user selects a variant to edit
 // This reduces initial bundle size significantly (600+ lines component)
@@ -70,7 +71,6 @@ function HomeContent() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showNotHappy, setShowNotHappy] = useState(false);
   const saveAttemptedRef = useRef(false);
   
   // Track saved project for regeneration
@@ -243,7 +243,6 @@ function HomeContent() {
     }
 
     setState("processing");
-    setShowNotHappy(false);
     setToast({ message: "Generating new variants... This may take 1-2 minutes.", type: "info" });
 
     try {
@@ -308,13 +307,22 @@ function HomeContent() {
     const variantToDownload = variant || selectedVariant;
     if (!variantToDownload) return;
 
-    const link = document.createElement("a");
-    link.href = variantToDownload.design.imageUrl || variantToDownload.design.imageData;
-    link.download = `pod-remix-variant-${variantToDownload.id}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setToast({ message: "Design downloaded!", type: "success" });
+    try {
+      const imageUrl = variantToDownload.design.imageUrl || variantToDownload.design.imageData;
+      const filename = generateDownloadFileName({
+        designName: 'POD_Remix',
+        batchNumber: currentBatch,
+        variantNumber: variantToDownload.id,
+        strategy: variantToDownload.strategy,
+        style: 'Original'
+      });
+      
+      await downloadImage(imageUrl, filename);
+      setToast({ message: "Design downloaded successfully!", type: "success" });
+    } catch (error) {
+      console.error("Download error:", error);
+      setToast({ message: "Failed to download design", type: "error" });
+    }
   };
 
   return (
@@ -327,7 +335,7 @@ function HomeContent() {
               {state === "complete" ? (
                 <>
                   <h1 className="text-3xl md:text-4xl font-bold text-primary mb-2">
-                    Your Variants Are Ready ✨
+                    Your Variants Are Ready
                   </h1>
                   <p className="text-base text-muted max-w-lg mx-auto">
                     Click any design to customize colors and placement — then download
@@ -368,7 +376,6 @@ function HomeContent() {
             {state === "processing" && (
               <LoadingSpinner
                 message="Creating your design variations..."
-                subMessage="AI is analyzing your design and generating unique variants"
                 imagePreview={uploadPreview || undefined}
                 estimatedTime={25}
               />
@@ -378,12 +385,14 @@ function HomeContent() {
             {state === "complete" && (
               <div className="space-y-6">
                 {/* Gallery with sliding action bar */}
-                <RemixGallery
-                  variants={variants}
-                  onSelect={handleSelect}
-                  onEdit={handleOpenEditor}
-                  onDownload={handleDownload}
-                />
+                <div className="py-6 md:py-10">
+                  <RemixGallery
+                    variants={variants}
+                    onSelect={handleSelect}
+                    onEdit={handleOpenEditor}
+                    onDownload={handleDownload}
+                  />
+                </div>
 
                 
                 {/* Save Designs CTA - Only for guests */}
@@ -413,80 +422,14 @@ function HomeContent() {
                   </div>
                 )}
 
-                {/* "Not Happy?" Collapsible Section */}
-                <div className="w-full lg:w-1/2 mx-auto mt-8 relative">
-                  <button
-                    onClick={() => setShowNotHappy(!showNotHappy)}
-                    className="
-                      w-full flex items-center justify-between
-                      px-4 py-3 rounded
-                      bg-secondary hover:bg-secondary/80
-                      text-muted hover:text-foreground
-                      transition-all duration-200
-                    "
-                  >
-                    <span className="text-sm font-medium">Not happy with these results?</span>
-                    <svg 
-                      className={`w-5 h-5 transition-transform duration-300 ${showNotHappy ? 'rotate-180' : ''}`} 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                {/* USP Message */}
+                <div className="w-full lg:w-1/2 mx-auto mt-8">
+                  <div className="flex items-center justify-center gap-2 px-4 py-3 rounded bg-orange/5 border border-orange/20">
+                    <svg className="w-5 h-5 text-orange flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                  </button>
-
-                  {showNotHappy && (
-                    <>
-                      {/* Invisible overlay to close on outside click */}
-                      <div 
-                        className="fixed inset-0 z-10" 
-                        onClick={() => setShowNotHappy(false)}
-                        aria-hidden="true"
-                      />
-                      <div className="relative z-20 mt-3 p-4 bg-white dark:bg-surface rounded border border-border shadow-card space-y-3 animate-slideDown">
-                        <p className="text-sm text-muted mb-4">
-                          Don&apos;t worry! You can try again with different options:
-                        </p>
-                        <button
-                          onClick={handleRegenerate}
-                          className="
-                            w-full px-4 py-3
-                            bg-accent/10 hover:bg-accent/20
-                            text-accent
-                            font-medium text-sm
-                            rounded
-                            border border-accent/30
-                            transition-all duration-200
-                            flex items-center justify-center gap-2
-                          "
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                          {savedProjectId && user ? `Add 4 New Variants (Variant ${currentBatch + 1})` : 'Regenerate 4 New Variants'}
-                        </button>
-                        <button
-                          onClick={handleReset}
-                          className="
-                            w-full px-4 py-3
-                            bg-secondary hover:bg-secondary/80
-                            text-foreground
-                            font-medium text-sm
-                            rounded
-                            border border-border
-                            transition-all duration-200
-                            flex items-center justify-center gap-2
-                          "
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                          </svg>
-                          Upload Different Design
-                        </button>
-                      </div>
-                    </>
-                  )}
+                    <span className="text-sm font-medium text-orange">All variants are print-on-demand ready</span>
+                  </div>
                 </div>
               </div>
             )}
