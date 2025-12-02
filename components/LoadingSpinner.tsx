@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 
 interface LoadingSpinnerProps {
   message?: string;
+  subMessage?: string;
   imagePreview?: string;
   estimatedTime?: number; // in seconds
 }
@@ -27,6 +28,7 @@ const analysisSteps = [
 
 export default function LoadingSpinner({
   message = "Analyzing and generating 4 variants...",
+  subMessage,
   imagePreview,
   estimatedTime = 20,
 }: LoadingSpinnerProps) {
@@ -143,7 +145,7 @@ export default function LoadingSpinner({
           <h2 className="text-xl font-bold text-foreground">{message}</h2>
 
           {/* Sub message */}
-          <p className="text-sm text-muted">This usually takes 15-30 seconds</p>
+          <p className="text-sm text-muted">{subMessage || "This usually takes 15-30 seconds"}</p>
 
           {/* Progress Bar - Time-based with percentage */}
           <div className="space-y-1">
