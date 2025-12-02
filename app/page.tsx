@@ -74,6 +74,10 @@ function HomeContent() {
   const [showNotHappy, setShowNotHappy] = useState(false);
   const saveAttemptedRef = useRef(false);
   
+  // Track saved project for regeneration
+  const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
+  const [currentBatch, setCurrentBatch] = useState(1);
+  
   // Free tier usage tracking (only for non-authenticated users)
   const [remainingGenerations, setRemainingGenerations] = useState<number>(getDailyLimit());
   const [isAtLimit, setIsAtLimit] = useState(false);
@@ -129,7 +133,9 @@ function HomeContent() {
           projectName,
         });
 
-        if (result.success) {
+        if (result.success && result.projectId) {
+          setSavedProjectId(result.projectId);
+          setCurrentBatch(1);
           setToast({ message: "Project saved to your library!", type: "success" });
         } else {
           console.error("Failed to save project:", result.error);
@@ -225,6 +231,63 @@ function HomeContent() {
     setError(null);
     setShowNotHappy(false);
     saveAttemptedRef.current = false;
+    setSavedProjectId(null);
+    setCurrentBatch(1);
+  };
+
+  // Regenerate variants for an existing project (adds new batch)
+  const handleRegenerate = async () => {
+    if (!savedProjectId || !user) {
+      // Fallback to creating new variants if no project saved
+      handleUpload();
+      return;
+    }
+
+    setState("processing");
+    setShowNotHappy(false);
+    setToast({ message: "Generating new variants... This may take 1-2 minutes.", type: "info" });
+
+    try {
+      const response = await fetch(`/api/projects/${savedProjectId}/regenerate`, {
+        method: 'POST',
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error('Regeneration failed:', result);
+        throw new Error(result.error || 'Failed to regenerate');
+      }
+
+      // Update variants with new batch
+      const newVariants: Variant[] = result.variants.map((v: { variant_number: number; strategy: string; image_url: string; recommended_background: 'light' | 'dark'; product_hint: string | null }) => ({
+        id: v.variant_number,
+        strategy: v.strategy,
+        design: {
+          imageData: v.image_url,
+          imageUrl: v.image_url,
+        },
+        colorClassification: {
+          recommendedBackground: v.recommended_background || 'light',
+          productHint: v.product_hint || '',
+        },
+      }));
+
+      setVariants(newVariants);
+      setCurrentBatch(result.batchNumber);
+      setState("complete");
+      setToast({ 
+        message: `✨ Created ${result.variantCount} new variants (Variant ${result.batchNumber})!`, 
+        type: "success" 
+      });
+    } catch (error) {
+      console.error('Regeneration error:', error);
+      setState("complete"); // Go back to complete state so user can try again
+      setToast({ 
+        message: error instanceof Error ? error.message : "Failed to regenerate variants", 
+        type: "error" 
+      });
+    }
   };
 
   const handleOpenEditor = (variant?: Variant) => {
@@ -261,8 +324,8 @@ function HomeContent() {
       
       <main className="min-h-[calc(100vh-4rem)] p-4 md:p-8 pt-4 flex flex-col">
         <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col">
-          {/* Header - hidden when editing to avoid double titles */}
-          {state !== "editing" && (
+          {/* Header - hidden when editing or processing to focus attention on the animation */}
+          {state !== "editing" && state !== "processing" && (
             <div className="text-center mb-6 transition-state">
               <h1 className="text-3xl md:text-4xl font-bold text-primary mb-2">
                 Clone Bestselling POD Designs
@@ -360,7 +423,7 @@ function HomeContent() {
                         Don&apos;t worry! You can try again with different options:
                       </p>
                       <button
-                        onClick={handleUpload}
+                        onClick={handleRegenerate}
                         className="
                           w-full px-4 py-3
                           bg-accent/10 hover:bg-accent/20
@@ -375,7 +438,7 @@ function HomeContent() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
-                        Regenerate 4 New Variants
+                        {savedProjectId && user ? `Add 4 New Variants (Variant ${currentBatch + 1})` : 'Regenerate 4 New Variants'}
                       </button>
                       <button
                         onClick={handleReset}
