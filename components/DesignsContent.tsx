@@ -10,6 +10,7 @@ interface Variant {
   id: string;
   variant_number: number;
   image_url: string;
+  thumbnail_url?: string | null;
   recommended_background: 'light' | 'dark';
   strategy: string;
 }

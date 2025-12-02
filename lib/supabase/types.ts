@@ -63,6 +63,7 @@ export type Database = {
           batch_number: number
           strategy: string
           image_url: string
+          thumbnail_url: string | null
           recommended_background: 'light' | 'dark'
           product_hint: string | null
           created_at: string
@@ -74,6 +75,7 @@ export type Database = {
           batch_number?: number
           strategy: string
           image_url: string
+          thumbnail_url?: string | null
           recommended_background: 'light' | 'dark'
           product_hint?: string | null
           created_at?: string
@@ -85,6 +87,7 @@ export type Database = {
           batch_number?: number
           strategy?: string
           image_url?: string
+          thumbnail_url?: string | null
           recommended_background?: 'light' | 'dark'
           product_hint?: string | null
           created_at?: string

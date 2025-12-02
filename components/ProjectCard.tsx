@@ -25,6 +25,7 @@ interface Variant {
   id: string;
   variant_number?: number;
   image_url: string;
+  thumbnail_url?: string | null;
   recommended_background: 'light' | 'dark';
   strategy?: string;
 }
@@ -85,7 +86,7 @@ export default function ProjectCard({ project, priority = false }: ProjectCardPr
         {currentVariant?.image_url ? (
           <Link href={`/designs/${project.id}`} className="block w-full h-full">
             <Image
-              src={currentVariant.image_url}
+              src={currentVariant.thumbnail_url || currentVariant.image_url}
               alt={`${project.name} - Variant ${currentIndex + 1}`}
               fill
               loading={priority ? "eager" : "lazy"}

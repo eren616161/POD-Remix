@@ -7,6 +7,7 @@ interface Variant {
   design: {
     imageData: string;  // Can be URL or base64
     imageUrl?: string;  // Explicit URL field (preferred)
+    thumbnailUrl?: string;  // Thumbnail URL for fast loading
     prompt: string;
   };
   colorClassification?: {
@@ -111,11 +112,12 @@ export async function saveProject({
     const originalPath = `originals/${userId}/${projectId}.png`;
     const originalUrl = await uploadImage(supabase, bucket, originalPath, originalImage);
     
-    // 2. Upload variant images in parallel
+    // 2. Upload variant images in parallel (including thumbnails)
     // Note: imageData may already be a URL from the remix API (Supabase Storage)
     const variantUploadPromises = variants.map(async (variant) => {
       // Use explicit imageUrl if available, otherwise use imageData
       const imageSource = variant.design.imageUrl || variant.design.imageData;
+      const thumbnailSource = variant.design.thumbnailUrl;
       
       // If already a URL (from remix API), we can use it directly
       // The temp images are already in Supabase Storage, so we just need to copy to permanent location
@@ -138,23 +140,51 @@ export async function saveProject({
           
           if (error) {
             console.warn(`Failed to copy variant ${variant.id} to permanent storage, using temp URL:`, error);
-            return { ...variant, imageUrl: imageSource };
+            return { ...variant, imageUrl: imageSource, thumbnailUrl: thumbnailSource || imageSource };
           }
           
           const { data: urlData } = supabase.storage
             .from(bucket)
             .getPublicUrl(variantPath);
           
-          return { ...variant, imageUrl: urlData.publicUrl };
+          // Also copy thumbnail to permanent storage if available
+          let permanentThumbnailUrl = urlData.publicUrl; // Fallback to full image
+          if (thumbnailSource && isUrl(thumbnailSource)) {
+            try {
+              const thumbResponse = await fetch(thumbnailSource);
+              const thumbBlob = await thumbResponse.blob();
+              const thumbArrayBuffer = await thumbBlob.arrayBuffer();
+              const thumbBuffer = Buffer.from(thumbArrayBuffer);
+              
+              const thumbnailPath = `variants/${userId}/${projectId}_v${variant.id}_thumb.webp`;
+              const { error: thumbError } = await supabase.storage
+                .from(bucket)
+                .upload(thumbnailPath, thumbBuffer, {
+                  contentType: 'image/webp',
+                  upsert: true,
+                });
+              
+              if (!thumbError) {
+                const { data: thumbUrlData } = supabase.storage
+                  .from(bucket)
+                  .getPublicUrl(thumbnailPath);
+                permanentThumbnailUrl = thumbUrlData.publicUrl;
+              }
+            } catch (thumbErr) {
+              console.warn(`Failed to copy thumbnail ${variant.id}, using full image URL`);
+            }
+          }
+          
+          return { ...variant, imageUrl: urlData.publicUrl, thumbnailUrl: permanentThumbnailUrl };
         } catch (err) {
           console.warn(`Failed to process variant ${variant.id} URL, using original:`, err);
-          return { ...variant, imageUrl: imageSource };
+          return { ...variant, imageUrl: imageSource, thumbnailUrl: thumbnailSource || imageSource };
         }
       } else {
         // Original base64 upload path (fallback for old behavior)
         const variantPath = `variants/${userId}/${projectId}_v${variant.id}.png`;
         const variantUrl = await uploadImage(supabase, bucket, variantPath, imageSource);
-        return { ...variant, imageUrl: variantUrl };
+        return { ...variant, imageUrl: variantUrl, thumbnailUrl: variantUrl };
       }
     });
     
@@ -183,6 +213,7 @@ export async function saveProject({
       batch_number: 1,
       strategy: variant.strategy,
       image_url: variant.imageUrl,
+      thumbnail_url: variant.thumbnailUrl || null,
       recommended_background: variant.colorClassification?.recommendedBackground || 'light',
       product_hint: variant.colorClassification?.productHint || null,
     }));
@@ -232,9 +263,10 @@ export async function saveRegeneratedVariants({
   const bucket = 'design-images';
   
   try {
-    // Upload variant images in parallel
+    // Upload variant images in parallel (including thumbnails)
     const variantUploadPromises = variants.map(async (variant) => {
       const imageSource = variant.design.imageUrl || variant.design.imageData;
+      const thumbnailSource = variant.design.thumbnailUrl;
       
       // Use batch number in the file path to avoid overwriting existing variants
       const variantPath = `variants/${userId}/${projectId}_b${batchNumber}_v${variant.id}.png`;
@@ -255,21 +287,49 @@ export async function saveRegeneratedVariants({
           
           if (error) {
             console.warn(`Failed to upload variant ${variant.id} batch ${batchNumber}:`, error);
-            return { ...variant, imageUrl: imageSource };
+            return { ...variant, imageUrl: imageSource, thumbnailUrl: thumbnailSource || imageSource };
           }
           
           const { data: urlData } = supabase.storage
             .from(bucket)
             .getPublicUrl(variantPath);
           
-          return { ...variant, imageUrl: urlData.publicUrl };
+          // Also copy thumbnail to permanent storage if available
+          let permanentThumbnailUrl = urlData.publicUrl;
+          if (thumbnailSource && isUrl(thumbnailSource)) {
+            try {
+              const thumbResponse = await fetch(thumbnailSource);
+              const thumbBlob = await thumbResponse.blob();
+              const thumbArrayBuffer = await thumbBlob.arrayBuffer();
+              const thumbBuffer = Buffer.from(thumbArrayBuffer);
+              
+              const thumbnailPath = `variants/${userId}/${projectId}_b${batchNumber}_v${variant.id}_thumb.webp`;
+              const { error: thumbError } = await supabase.storage
+                .from(bucket)
+                .upload(thumbnailPath, thumbBuffer, {
+                  contentType: 'image/webp',
+                  upsert: true,
+                });
+              
+              if (!thumbError) {
+                const { data: thumbUrlData } = supabase.storage
+                  .from(bucket)
+                  .getPublicUrl(thumbnailPath);
+                permanentThumbnailUrl = thumbUrlData.publicUrl;
+              }
+            } catch (thumbErr) {
+              console.warn(`Failed to copy thumbnail ${variant.id}`);
+            }
+          }
+          
+          return { ...variant, imageUrl: urlData.publicUrl, thumbnailUrl: permanentThumbnailUrl };
         } catch (err) {
           console.warn(`Failed to process variant ${variant.id}:`, err);
-          return { ...variant, imageUrl: imageSource };
+          return { ...variant, imageUrl: imageSource, thumbnailUrl: thumbnailSource || imageSource };
         }
       } else {
         const variantUrl = await uploadImage(supabase, bucket, variantPath, imageSource);
-        return { ...variant, imageUrl: variantUrl };
+        return { ...variant, imageUrl: variantUrl, thumbnailUrl: variantUrl };
       }
     });
     
@@ -282,6 +342,7 @@ export async function saveRegeneratedVariants({
       batch_number: batchNumber,
       strategy: variant.strategy,
       image_url: variant.imageUrl,
+      thumbnail_url: variant.thumbnailUrl || null,
       recommended_background: variant.colorClassification?.recommendedBackground || 'light',
       product_hint: variant.colorClassification?.productHint || null,
     }));

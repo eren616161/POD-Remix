@@ -26,6 +26,7 @@ export default async function DesignsPage() {
         id,
         variant_number,
         image_url,
+        thumbnail_url,
         recommended_background,
         strategy
       )

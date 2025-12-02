@@ -8,6 +8,7 @@ import {
   type GeneratedVariant,
 } from "@/lib/gemini";
 import { removeBackgroundWithRecraft } from "@/lib/recraft";
+import { createThumbnail } from "@/lib/thumbnail";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -333,21 +334,46 @@ export async function POST(request: NextRequest) {
     // Generate a unique session ID for this remix batch
     const sessionId = crypto.randomUUID();
     
-    // Upload all variants in parallel
+    // Upload all variants in parallel (with thumbnails)
     const uploadedVariants = await Promise.all(
       variants.map(async (variant) => {
         const variantPath = `temp/${sessionId}/variant_${variant.id}.png`;
+        const thumbnailPath = `temp/${sessionId}/variant_${variant.id}_thumb.webp`;
         
         try {
+          // Upload full-size image
           const imageUrl = await uploadToStorage(variant.design.imageData, variantPath);
           console.log(`✅ Variant ${variant.id} uploaded: ${imageUrl.substring(0, 60)}...`);
+          
+          // Create and upload thumbnail
+          let thumbnailUrl = imageUrl; // Fallback to full image
+          try {
+            const thumbnailBuffer = await createThumbnail(variant.design.imageData, 400);
+            const { error: thumbError } = await supabase.storage
+              .from(STORAGE_BUCKET)
+              .upload(thumbnailPath, thumbnailBuffer, {
+                contentType: 'image/webp',
+                upsert: true,
+              });
+            
+            if (!thumbError) {
+              const { data: thumbUrlData } = supabase.storage
+                .from(STORAGE_BUCKET)
+                .getPublicUrl(thumbnailPath);
+              thumbnailUrl = thumbUrlData.publicUrl;
+              console.log(`🖼️ Thumbnail ${variant.id} created`);
+            }
+          } catch (thumbErr) {
+            console.warn(`⚠️ Thumbnail creation failed for variant ${variant.id}, using full image`);
+          }
           
           return {
             ...variant,
             design: {
               ...variant.design,
               imageData: imageUrl, // Replace base64 with URL
-              imageUrl: imageUrl,  // Also provide explicit imageUrl field
+              imageUrl: imageUrl,  // Full-size image URL
+              thumbnailUrl: thumbnailUrl, // Thumbnail URL for fast loading
             },
           };
         } catch (uploadError) {

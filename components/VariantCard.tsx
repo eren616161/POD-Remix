@@ -26,6 +26,7 @@ interface VariantCardProps {
     variant_number: number;
     strategy: string;
     image_url: string;
+    thumbnail_url?: string | null;
     recommended_background: 'light' | 'dark';
     product_hint: string | null;
   };
@@ -124,7 +125,7 @@ export default function VariantCard({
         onClick={(e) => isSelectionMode && e.preventDefault()}
       >
         <Image
-          src={variant.image_url}
+          src={variant.thumbnail_url || variant.image_url}
           alt={variant.strategy}
           fill
           loading="lazy"

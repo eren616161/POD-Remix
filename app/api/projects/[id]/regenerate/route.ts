@@ -6,6 +6,7 @@ import {
   generateVariantImages,
 } from "@/lib/gemini";
 import { removeBackgroundWithRecraft } from "@/lib/recraft";
+import { createThumbnail } from "@/lib/thumbnail";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 // Configure API route for long-running generation
@@ -153,15 +154,38 @@ export async function POST(request: Request, { params }: RouteParams) {
     const variants = await generateVariantImages(cleanedReferenceImage, strategies, analysis);
     console.log(`✅ Generated ${variants.length} variants`);
 
-    // Upload variants to storage with batch-specific paths
+    // Upload variants to storage with batch-specific paths (including thumbnails)
     console.log("📤 Uploading variants to storage...");
     const uploadedVariants = await Promise.all(
       variants.map(async (variant) => {
         const variantPath = `variants/${user.id}/${projectId}_b${nextBatchNumber}_v${variant.id}.png`;
+        const thumbnailPath = `variants/${user.id}/${projectId}_b${nextBatchNumber}_v${variant.id}_thumb.webp`;
         
         try {
           const imageUrl = await uploadToStorage(variant.design.imageData, variantPath);
           console.log(`✅ Variant ${variant.id} uploaded`);
+          
+          // Create and upload thumbnail
+          let thumbnailUrl = imageUrl; // Fallback to full image
+          try {
+            const thumbnailBuffer = await createThumbnail(variant.design.imageData, 400);
+            const { error: thumbError } = await supabaseStorage.storage
+              .from(STORAGE_BUCKET)
+              .upload(thumbnailPath, thumbnailBuffer, {
+                contentType: 'image/webp',
+                upsert: true,
+              });
+            
+            if (!thumbError) {
+              const { data: thumbUrlData } = supabaseStorage.storage
+                .from(STORAGE_BUCKET)
+                .getPublicUrl(thumbnailPath);
+              thumbnailUrl = thumbUrlData.publicUrl;
+              console.log(`🖼️ Thumbnail ${variant.id} created`);
+            }
+          } catch (thumbErr) {
+            console.warn(`⚠️ Thumbnail creation failed for variant ${variant.id}`);
+          }
           
           return {
             ...variant,
@@ -169,6 +193,7 @@ export async function POST(request: Request, { params }: RouteParams) {
               ...variant.design,
               imageData: imageUrl,
               imageUrl: imageUrl,
+              thumbnailUrl: thumbnailUrl,
             },
           };
         } catch (uploadError) {
@@ -181,14 +206,15 @@ export async function POST(request: Request, { params }: RouteParams) {
     // Save variant records to database
     console.log("💾 Saving variants to database...");
     const variantRecords = uploadedVariants.map((variant) => {
-      // Access design with type assertion since we added imageUrl during upload
-      const design = variant.design as { imageData: string; imageUrl?: string; prompt: string };
+      // Access design with type assertion since we added imageUrl and thumbnailUrl during upload
+      const design = variant.design as { imageData: string; imageUrl?: string; thumbnailUrl?: string; prompt: string };
       return {
         project_id: projectId,
         variant_number: variant.id,
         batch_number: nextBatchNumber,
         strategy: variant.strategy,
         image_url: design.imageUrl || design.imageData,
+        thumbnail_url: design.thumbnailUrl || null,
         recommended_background: variant.colorClassification?.recommendedBackground || 'light' as const,
         product_hint: variant.colorClassification?.productHint || null,
       };
