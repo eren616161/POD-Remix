@@ -216,7 +216,6 @@ export async function saveProject({
       image_url: variant.imageUrl,
       thumbnail_url: variant.thumbnailUrl || null,
       recommended_background: variant.colorClassification?.recommendedBackground || 'light',
-      product_hint: variant.colorClassification?.productHint || null,
     }));
     
     const { error: variantsError } = await supabase
@@ -346,7 +345,6 @@ export async function saveRegeneratedVariants({
       image_url: variant.imageUrl,
       thumbnail_url: variant.thumbnailUrl || null,
       recommended_background: variant.colorClassification?.recommendedBackground || 'light',
-      product_hint: variant.colorClassification?.productHint || null,
     }));
     
     const { error: variantsError } = await supabase

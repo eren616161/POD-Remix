@@ -268,7 +268,7 @@ export default function UploadSection({
       </div>
 
       {/* Main Upload Card */}
-      <div className="bg-white rounded border border-border shadow-sm overflow-hidden relative">
+      <div className="bg-surface rounded border border-border shadow-sm overflow-hidden relative">
         {/* Clear/Cancel button - at top of card */}
         {preview && onClear && (
           <button
@@ -451,51 +451,47 @@ export default function UploadSection({
             <div className="w-full border-t border-border"></div>
           </div>
           <div className="relative flex justify-center">
-            <span className="bg-white px-3 text-xs text-muted">or paste URL</span>
+            <span className="bg-surface px-3 text-xs text-muted">or paste URL</span>
           </div>
         </div>
 
-        {/* URL Input - Clean with accent focus */}
+        {/* URL Input - Clean with accent focus, Go button inside */}
         <div className="px-5 pb-5">
-          <div className="flex gap-2">
-            <div className="flex-1 relative">
-              <input
-                type="url"
-                value={urlInput}
-                onChange={(e) => {
-                  setUrlInput(e.target.value);
-                  setUrlError(null);
-                }}
-                onKeyDown={handleKeyDown}
-                placeholder="https://..."
-                className={`
-                  w-full px-3 py-2.5 rounded text-sm
-                  bg-secondary/50 border
-                  text-foreground placeholder:text-muted/50
-                  focus:outline-none focus:ring-2 focus:ring-accent/20 focus:bg-white
-                  transition-all duration-200
-                  ${urlError 
-                    ? "border-destructive focus:border-destructive" 
-                    : "border-border focus:border-accent"
-                  }
-                `}
-              />
-              {urlError && (
-                <p className="absolute -bottom-5 left-0 text-xs text-destructive">
-                  {urlError}
-                </p>
-              )}
-            </div>
+          <div className="relative">
+            <input
+              type="url"
+              value={urlInput}
+              onChange={(e) => {
+                setUrlInput(e.target.value);
+                setUrlError(null);
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="https://..."
+              className={`
+                w-full px-3 py-2.5 pr-14 rounded text-sm
+                bg-secondary/50 border
+                text-foreground placeholder:text-muted/50
+                focus:outline-none focus:ring-2 focus:ring-accent/20 focus:bg-surface
+                transition-all duration-200
+                ${urlError 
+                  ? "border-destructive focus:border-destructive" 
+                  : "border-border focus:border-accent"
+                }
+              `}
+            />
+            {/* Go button inside input */}
             <button
               onClick={handleUrlSubmit}
               disabled={urlLoading || !urlInput.trim()}
               className={`
-                px-4 py-2.5 rounded font-semibold text-sm
-                transition-all duration-200 min-w-[60px]
-                flex items-center justify-center
-                ${urlLoading || !urlInput.trim()
-                  ? "bg-orange/60 text-white/90 cursor-not-allowed"
-                  : "bg-orange text-white shadow-orange-glow hover:shadow-orange-glow-hover hover:bg-orange-hover active:scale-95"
+                absolute right-2 top-1/2 -translate-y-1/2
+                px-2 py-1 font-bold text-sm
+                transition-all duration-200
+                ${urlLoading 
+                  ? "text-orange"
+                  : !urlInput.trim()
+                    ? "text-transparent pointer-events-none"
+                    : "text-orange hover:text-orange-hover active:scale-95"
                 }
               `}
             >
@@ -508,6 +504,11 @@ export default function UploadSection({
                 "Go"
               )}
             </button>
+            {urlError && (
+              <p className="absolute -bottom-5 left-0 text-xs text-destructive">
+                {urlError}
+              </p>
+            )}
           </div>
         </div>
       </div>

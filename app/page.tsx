@@ -6,7 +6,6 @@ import dynamic from "next/dynamic";
 import UploadSection from "@/components/UploadSection";
 import RemixGallery from "@/components/RemixGallery";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import ThemeToggle from "@/components/ThemeToggle";
 import Toast from "@/components/Toast";
 import AuthModal from "@/components/AuthModal";
 import SaveDesignsCTA from "@/components/SaveDesignsCTA";
@@ -260,7 +259,7 @@ function HomeContent() {
       }
 
       // Update variants with new batch
-      const newVariants: Variant[] = result.variants.map((v: { variant_number: number; strategy: string; image_url: string; recommended_background: 'light' | 'dark'; product_hint: string | null }) => ({
+      const newVariants: Variant[] = result.variants.map((v: { variant_number: number; strategy: string; image_url: string; recommended_background: 'light' | 'dark' }) => ({
         id: v.variant_number,
         strategy: v.strategy,
         design: {
@@ -269,7 +268,7 @@ function HomeContent() {
         },
         colorClassification: {
           recommendedBackground: v.recommended_background || 'light',
-          productHint: v.product_hint || '',
+          productHint: '',
         },
       }));
 
@@ -320,19 +319,30 @@ function HomeContent() {
 
   return (
     <>
-      <ThemeToggle />
-      
       <main className="min-h-[calc(100vh-4rem)] p-4 md:p-8 pt-4 flex flex-col">
         <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col">
           {/* Header - hidden when editing or processing to focus attention on the animation */}
           {state !== "editing" && state !== "processing" && (
             <div className="text-center mb-6 transition-state">
-              <h1 className="text-3xl md:text-4xl font-bold text-primary mb-2">
-                Clone Bestselling POD Designs
-              </h1>
-              <p className="text-base text-muted max-w-lg mx-auto">
-                Screenshot any trending design from Amazon, Etsy, or social media — get 4 unique, print-ready variants instantly
-              </p>
+              {state === "complete" ? (
+                <>
+                  <h1 className="text-3xl md:text-4xl font-bold text-primary mb-2">
+                    Your Variants Are Ready ✨
+                  </h1>
+                  <p className="text-base text-muted max-w-lg mx-auto">
+                    Click any design to customize colors and placement — then download
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h1 className="text-3xl md:text-4xl font-bold text-primary mb-2">
+                    Clone Bestselling POD Designs
+                  </h1>
+                  <p className="text-base text-muted max-w-lg mx-auto">
+                    Screenshot any trending design from Amazon, Etsy, or social media — get 4 unique, print-ready variants instantly
+                  </p>
+                </>
+              )}
             </div>
           )}
 
@@ -375,12 +385,6 @@ function HomeContent() {
                   onDownload={handleDownload}
                 />
 
-                {/* Hint text when no selection */}
-                {!selectedVariant && (
-                  <p className="text-muted text-center">
-                    👆 Select a variant above to continue
-                  </p>
-                )}
                 
                 {/* Save Designs CTA - Only for guests */}
                 {!user && (
@@ -389,13 +393,28 @@ function HomeContent() {
                       onSuccess={() => setToast({ 
                         message: "Check your email for the magic link!", 
                         type: "success" 
-                      })} 
+                      })}
+                      pendingProjectData={uploadPreview && variants.length > 0 ? {
+                        originalImage: uploadPreview,
+                        variants: variants.map(v => ({
+                          id: v.id,
+                          strategy: v.strategy,
+                          design: {
+                            imageData: v.design.imageData,
+                            imageUrl: v.design.imageUrl,
+                          },
+                          colorClassification: v.colorClassification ? {
+                            recommendedBackground: v.colorClassification.recommendedBackground,
+                          } : undefined,
+                        })),
+                        createdAt: new Date().toISOString(),
+                      } : null}
                     />
                   </div>
                 )}
 
                 {/* "Not Happy?" Collapsible Section */}
-                <div className="w-full lg:w-1/2 mx-auto mt-8">
+                <div className="w-full lg:w-1/2 mx-auto mt-8 relative">
                   <button
                     onClick={() => setShowNotHappy(!showNotHappy)}
                     className="
@@ -418,47 +437,55 @@ function HomeContent() {
                   </button>
 
                   {showNotHappy && (
-                    <div className="mt-3 p-4 bg-white rounded border border-border shadow-card space-y-3 animate-slideDown">
-                      <p className="text-sm text-muted mb-4">
-                        Don&apos;t worry! You can try again with different options:
-                      </p>
-                      <button
-                        onClick={handleRegenerate}
-                        className="
-                          w-full px-4 py-3
-                          bg-accent/10 hover:bg-accent/20
-                          text-accent
-                          font-medium text-sm
-                          rounded
-                          border border-accent/30
-                          transition-all duration-200
-                          flex items-center justify-center gap-2
-                        "
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        {savedProjectId && user ? `Add 4 New Variants (Variant ${currentBatch + 1})` : 'Regenerate 4 New Variants'}
-                      </button>
-                      <button
-                        onClick={handleReset}
-                        className="
-                          w-full px-4 py-3
-                          bg-secondary hover:bg-secondary/80
-                          text-foreground
-                          font-medium text-sm
-                          rounded
-                          border border-border
-                          transition-all duration-200
-                          flex items-center justify-center gap-2
-                        "
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        Upload Different Design
-                      </button>
-                    </div>
+                    <>
+                      {/* Invisible overlay to close on outside click */}
+                      <div 
+                        className="fixed inset-0 z-10" 
+                        onClick={() => setShowNotHappy(false)}
+                        aria-hidden="true"
+                      />
+                      <div className="relative z-20 mt-3 p-4 bg-white dark:bg-surface rounded border border-border shadow-card space-y-3 animate-slideDown">
+                        <p className="text-sm text-muted mb-4">
+                          Don&apos;t worry! You can try again with different options:
+                        </p>
+                        <button
+                          onClick={handleRegenerate}
+                          className="
+                            w-full px-4 py-3
+                            bg-accent/10 hover:bg-accent/20
+                            text-accent
+                            font-medium text-sm
+                            rounded
+                            border border-accent/30
+                            transition-all duration-200
+                            flex items-center justify-center gap-2
+                          "
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          {savedProjectId && user ? `Add 4 New Variants (Variant ${currentBatch + 1})` : 'Regenerate 4 New Variants'}
+                        </button>
+                        <button
+                          onClick={handleReset}
+                          className="
+                            w-full px-4 py-3
+                            bg-secondary hover:bg-secondary/80
+                            text-foreground
+                            font-medium text-sm
+                            rounded
+                            border border-border
+                            transition-all duration-200
+                            flex items-center justify-center gap-2
+                          "
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                          Upload Different Design
+                        </button>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>

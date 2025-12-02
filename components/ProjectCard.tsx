@@ -38,9 +38,11 @@ interface ProjectCardProps {
     variants: Variant[];
   };
   priority?: boolean;
+  isFavorite?: boolean;
+  onFavoriteToggle?: (projectId: string) => void;
 }
 
-export default function ProjectCard({ project, priority = false }: ProjectCardProps) {
+export default function ProjectCard({ project, priority = false, isFavorite = false, onFavoriteToggle }: ProjectCardProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const variants = project.variants;
   const currentVariant = variants[currentIndex];
@@ -56,6 +58,12 @@ export default function ProjectCard({ project, priority = false }: ProjectCardPr
   // Counter styles - no hover (not clickable), matches arrow contrast
   const counterBg = isDarkBg ? 'bg-white/80' : 'bg-gray-600/60';
   const counterText = isDarkBg ? 'text-gray-700' : 'text-white';
+  
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onFavoriteToggle?.(project.id);
+  };
   
   const goToPrevious = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -76,7 +84,7 @@ export default function ProjectCard({ project, priority = false }: ProjectCardPr
   };
 
   return (
-    <div className="group block bg-white rounded-sm overflow-hidden shadow-sm hover:shadow-md hover:ring-1 hover:ring-accent/20 hover:-translate-y-0.5 transition-all duration-200 border border-border">
+    <div className="group block bg-surface rounded-sm overflow-hidden shadow-sm hover:shadow-md hover:ring-1 hover:ring-accent/20 hover:-translate-y-0.5 transition-all duration-200 border border-border">
       {/* Thumbnail with Carousel */}
       <div 
         className={`aspect-square ${bgClass} relative overflow-hidden`}
@@ -158,25 +166,55 @@ export default function ProjectCard({ project, priority = false }: ProjectCardPr
         )}
       </div>
 
-      {/* Card Footer - matches VariantCard footer sizing */}
-      <Link href={`/designs/${project.id}`} className="block px-3 py-2 bg-white hover:bg-secondary/30 transition-colors">
+      {/* Card Footer - dark mode compatible */}
+      <div className="px-3 py-2 bg-surface">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-primary truncate pr-2">
-            {project.name}
-          </h3>
-          {/* Clickable indicator - light green bg, dark green arrow */}
-          <div className="w-5 h-5 rounded bg-accent/10 text-accent group-hover:bg-accent group-hover:text-white flex items-center justify-center transition-all duration-200 flex-shrink-0">
-            <svg 
-              className="w-3 h-3" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
+          <Link href={`/designs/${project.id}`} className="flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-foreground truncate pr-2 hover:text-accent transition-colors">
+              {project.name}
+            </h3>
+          </Link>
+          <div className="flex items-center gap-1">
+            {/* Favorite Button */}
+            {onFavoriteToggle && (
+              <button
+                onClick={handleFavoriteClick}
+                className={`
+                  p-1 rounded transition-all duration-200
+                  ${isFavorite 
+                    ? 'text-orange' 
+                    : 'text-muted hover:text-orange opacity-0 group-hover:opacity-100'
+                  }
+                `}
+                title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+              >
+                <svg 
+                  className="w-4 h-4" 
+                  fill={isFavorite ? 'currentColor' : 'none'}
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+              </button>
+            )}
+            {/* Clickable indicator - light green bg, dark green arrow */}
+            <Link 
+              href={`/designs/${project.id}`}
+              className="w-5 h-5 rounded bg-accent/10 text-accent group-hover:bg-accent group-hover:text-white flex items-center justify-center transition-all duration-200 flex-shrink-0"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 17L17 7M17 7H7M17 7v10" />
-            </svg>
+              <svg 
+                className="w-3 h-3" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 17L17 7M17 7H7M17 7v10" />
+              </svg>
+            </Link>
           </div>
         </div>
-      </Link>
+      </div>
     </div>
   );
 }

@@ -23,6 +23,7 @@ interface Variant {
 interface UrlVariant {
   id: string;
   variant_number: number;
+  batch_number?: number;
   strategy: string;
   image_url: string;
   recommended_background: 'light' | 'dark';
@@ -41,6 +42,8 @@ interface DesignEditorProps {
   onSave: (settings: EditorSettings) => void;
   onCancel: () => void;
   returnPath?: string;
+  designName?: string;
+  batchNumber?: number;
 }
 
 // ============================================================================
@@ -97,7 +100,7 @@ const PRESETS: Preset[] = [
 // Component
 // ============================================================================
 
-export default function DesignEditor({ variant, urlVariant, mockupType, onSave, onCancel, returnPath }: DesignEditorProps) {
+export default function DesignEditor({ variant, urlVariant, mockupType, onSave, onCancel, returnPath, designName, batchNumber }: DesignEditorProps) {
   const { user } = useAuth();
   
   // Determine image source
@@ -105,6 +108,7 @@ export default function DesignEditor({ variant, urlVariant, mockupType, onSave, 
   const variantId = variant?.id || urlVariant?.variant_number || 0;
   const strategy = variant?.strategy || urlVariant?.strategy || '';
   const isUrlBased = !!urlVariant;
+  const actualBatchNumber = batchNumber || urlVariant?.batch_number || 1;
 
   // State
   const [activePreset, setActivePreset] = useState<PresetId>("original");
@@ -143,20 +147,35 @@ export default function DesignEditor({ variant, urlVariant, mockupType, onSave, 
     if (isUrlBased && urlVariant?.image_url) {
       setIsLoadingImage(true);
       
-      // Fetch the image and convert to base64
+      // Fetch the image and convert to base64 with proper error handling
       fetch(urlVariant.image_url)
-        .then(res => res.blob())
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`Failed to fetch image: ${res.status}`);
+          }
+          const contentType = res.headers.get('content-type');
+          if (contentType && !contentType.startsWith('image/')) {
+            throw new Error('URL does not point to an image');
+          }
+          return res.blob();
+        })
         .then(blob => {
           const reader = new FileReader();
           reader.onloadend = () => {
             setLoadedImageData(reader.result as string);
             setIsLoadingImage(false);
           };
+          reader.onerror = () => {
+            console.error('Failed to read image blob');
+            setIsLoadingImage(false);
+            setExportError('Failed to load image');
+          };
           reader.readAsDataURL(blob);
         })
         .catch(err => {
           console.error('Failed to load image:', err);
           setIsLoadingImage(false);
+          setExportError(err instanceof Error ? err.message : 'Failed to load image');
         });
     }
   }, [isUrlBased, urlVariant?.image_url]);
@@ -268,17 +287,31 @@ export default function DesignEditor({ variant, urlVariant, mockupType, onSave, 
       // If invert preset is selected, generate inverted image on-demand for export
       // This ensures high-quality luminosity invert (CSS is just for preview)
       if (currentPreset.useInverted) {
-        const invertResponse = await fetch("/api/invert", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageData: actualImageData }),
-        });
-        
-        if (invertResponse.ok) {
+        try {
+          const invertResponse = await fetch("/api/invert", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageData: actualImageData }),
+          });
+          
+          if (!invertResponse.ok) {
+            const errorText = await invertResponse.text();
+            let errorMessage = "Failed to generate inverted image";
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.error || errorMessage;
+            } catch {
+              // Response wasn't JSON, use text if available
+              if (errorText) errorMessage = errorText;
+            }
+            throw new Error(errorMessage);
+          }
+          
           const invertData = await invertResponse.json();
           imageToExport = invertData.invertedImage;
-        } else {
-          throw new Error("Failed to generate inverted image");
+        } catch (invertErr) {
+          console.error("Invert error:", invertErr);
+          throw new Error(invertErr instanceof Error ? invertErr.message : "Failed to invert image");
         }
       }
 
@@ -295,16 +328,31 @@ export default function DesignEditor({ variant, urlVariant, mockupType, onSave, 
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to export image");
+        const errorText = await response.text();
+        let errorMessage = "Failed to export image";
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // Response wasn't JSON
+          if (errorText) errorMessage = errorText;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
 
+      // Generate download filename
+      // Format: {DesignName} - V{BatchNumber}, {Strategy}, {Preset}.png
+      const safeName = (designName || "Design").replace(/[^a-zA-Z0-9\s-]/g, '').trim();
+      const safeStrategy = strategy.replace(/[^a-zA-Z0-9\s-]/g, '').trim();
+      const presetName = currentPreset.name;
+      const filename = `${safeName} - V${actualBatchNumber}, ${safeStrategy}, ${presetName}.png`;
+
       // Trigger download
       const link = document.createElement("a");
       link.href = data.exportedImage;
-      link.download = `design-${variantId}-${activePreset}-${Date.now()}.png`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

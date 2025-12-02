@@ -28,7 +28,6 @@ interface VariantCardProps {
     image_url: string;
     thumbnail_url?: string | null;
     recommended_background: 'light' | 'dark';
-    product_hint: string | null;
   };
   projectId: string;
   isSelectionMode?: boolean;
@@ -109,7 +108,7 @@ export default function VariantCard({
     <div
       onClick={handleCardClick}
       className={`
-        bg-white rounded-sm overflow-hidden shadow-sm border border-border group
+        bg-surface rounded-sm overflow-hidden shadow-sm border border-border group
         transition-all duration-200
         hover:shadow-md hover:ring-1 hover:ring-accent/20 hover:-translate-y-0.5
         ${isSelectionMode ? 'cursor-pointer' : ''}
@@ -181,10 +180,10 @@ export default function VariantCard({
         )}
       </Link>
 
-      {/* Card Footer */}
-      <div className="px-2.5 py-2 flex items-center justify-between bg-white">
+      {/* Card Footer - dark mode compatible */}
+      <div className="px-2.5 py-2 flex items-center justify-between bg-surface">
         {/* Strategy Name as Title */}
-        <h3 className="text-sm font-semibold text-foreground truncate pr-2">{variant.strategy}</h3>
+        <h3 className="text-sm font-semibold text-primary truncate pr-2">{variant.strategy}</h3>
         
         {!isSelectionMode && (
           <div className="flex items-center gap-0.5">

@@ -217,7 +217,6 @@ export async function POST(request: Request, { params }: RouteParams) {
         image_url: design.imageUrl || design.imageData,
         thumbnail_url: design.thumbnailUrl || null,
         recommended_background: variant.colorClassification?.recommendedBackground || 'light' as const,
-        product_hint: variant.colorClassification?.productHint || null,
       };
     });
 

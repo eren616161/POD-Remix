@@ -18,7 +18,6 @@ interface Variant {
   strategy: string;
   image_url: string;
   recommended_background: 'light' | 'dark';
-  product_hint: string | null;
 }
 
 interface Project {
@@ -344,7 +343,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
               </svg>
             </Link>
             <div>
-              <h1 className="text-xl md:text-2xl font-bold text-foreground">{project.name}</h1>
+              <h1 className="text-xl md:text-2xl font-bold text-primary">{project.name}</h1>
               <p className="text-muted text-xs mt-0.5">{formattedDate}</p>
             </div>
           </div>

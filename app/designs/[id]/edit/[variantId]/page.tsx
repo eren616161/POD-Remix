@@ -9,6 +9,7 @@ import type { Variant, Project } from "@/lib/supabase/types";
 interface UrlVariant {
   id: string;
   variant_number: number;
+  batch_number: number;
   strategy: string;
   image_url: string;
   recommended_background: 'light' | 'dark';
@@ -21,6 +22,7 @@ export default function EditVariantPage() {
   const variantId = params.variantId as string;
 
   const [variant, setVariant] = useState<UrlVariant | null>(null);
+  const [projectName, setProjectName] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,19 +37,21 @@ export default function EditVariantPage() {
         return;
       }
 
-      // First verify the project belongs to the user
+      // First verify the project belongs to the user and get the name
       const { data: project } = await supabase
         .from('projects')
-        .select('id')
+        .select('id, name')
         .eq('id', projectId)
         .eq('user_id', user.id)
-        .single() as { data: Pick<Project, 'id'> | null };
+        .single() as { data: Pick<Project, 'id' | 'name'> | null };
 
       if (!project) {
         setError('Project not found');
         setIsLoading(false);
         return;
       }
+
+      setProjectName(project.name);
 
       // Then fetch the variant
       const { data: variantData, error } = await supabase
@@ -66,6 +70,7 @@ export default function EditVariantPage() {
       setVariant({
         id: variantData.id,
         variant_number: variantData.variant_number,
+        batch_number: variantData.batch_number || 1,
         strategy: variantData.strategy,
         image_url: variantData.image_url,
         recommended_background: variantData.recommended_background,
@@ -162,6 +167,8 @@ export default function EditVariantPage() {
         onSave={handleSave}
         onCancel={handleCancel}
         returnPath={`/designs/${projectId}`}
+        designName={projectName}
+        batchNumber={variant.batch_number}
       />
     </main>
   );

@@ -66,7 +66,6 @@ export type Database = {
           image_url: string
           thumbnail_url: string | null
           recommended_background: 'light' | 'dark'
-          product_hint: string | null
           created_at: string
         }
         Insert: {
@@ -79,7 +78,6 @@ export type Database = {
           image_url: string
           thumbnail_url?: string | null
           recommended_background: 'light' | 'dark'
-          product_hint?: string | null
           created_at?: string
         }
         Update: {
@@ -92,7 +90,6 @@ export type Database = {
           image_url?: string
           thumbnail_url?: string | null
           recommended_background?: 'light' | 'dark'
-          product_hint?: string | null
           created_at?: string
         }
       }

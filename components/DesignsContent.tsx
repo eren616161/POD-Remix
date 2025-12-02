@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import ProjectCard from "@/components/ProjectCard";
-import LibraryControls, { SortOption, ViewMode } from "@/components/LibraryControls";
+import LibraryControls, { FilterOption, ViewMode } from "@/components/LibraryControls";
+import Toast from "@/components/Toast";
+
+const FAVORITES_STORAGE_KEY = "pod-remix-favorites";
 
 interface Variant {
   id: string;
@@ -53,26 +56,55 @@ const exampleTemplates = [
 ];
 
 export default function DesignsContent({ initialProjects }: DesignsContentProps) {
-  const [projects, setProjects] = useState<Project[]>(initialProjects);
-  const [sortBy, setSortBy] = useState<SortOption>("newest");
+  const [projects] = useState<Project[]>(initialProjects);
+  const [filterBy, setFilterBy] = useState<FilterOption>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
 
-  // Client-side sorting
-  const handleSortChange = (newSortBy: SortOption) => {
-    setSortBy(newSortBy);
-    
-    const sorted = [...projects].sort((a, b) => {
-      if (newSortBy === "newest") {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      } else if (newSortBy === "oldest") {
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      } else {
-        return a.name.localeCompare(b.name);
+  // Load favorites from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(FAVORITES_STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setFavorites(new Set(parsed));
+      } catch (e) {
+        console.error("Failed to parse favorites:", e);
       }
-    });
-    
-    setProjects(sorted);
+    }
+  }, []);
+
+  // Save favorites to localStorage when they change
+  const saveFavorites = (newFavorites: Set<string>) => {
+    setFavorites(newFavorites);
+    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...newFavorites]));
   };
+
+  const toggleFavorite = (projectId: string) => {
+    const newFavorites = new Set(favorites);
+    const isAdding = !newFavorites.has(projectId);
+    
+    if (isAdding) {
+      newFavorites.add(projectId);
+      setToast({ message: "Added to favorites ⭐", type: "success" });
+    } else {
+      newFavorites.delete(projectId);
+      setToast({ message: "Removed from favorites", type: "info" });
+    }
+    saveFavorites(newFavorites);
+  };
+
+  // Client-side filtering
+  const handleFilterChange = (newFilterBy: FilterOption) => {
+    setFilterBy(newFilterBy);
+  };
+
+  // Get filtered projects - sorted by newest first by default
+  const filteredProjects = (filterBy === "favorites" 
+    ? projects.filter(p => favorites.has(p.id))
+    : projects
+  ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   if (projects.length === 0) {
     return (
@@ -98,7 +130,7 @@ export default function DesignsContent({ initialProjects }: DesignsContentProps)
                 href="/"
                 className="
                   flex items-center gap-3 px-4 py-3
-                  bg-white rounded border border-border shadow-sm
+                  bg-surface rounded border border-border shadow-sm
                   hover:border-accent/30 hover:shadow-md
                   transition-all duration-200
                   min-h-[56px]
@@ -127,15 +159,55 @@ export default function DesignsContent({ initialProjects }: DesignsContentProps)
     );
   }
 
+  // Empty state for favorites filter
+  if (filterBy === "favorites" && filteredProjects.length === 0) {
+    return (
+      <>
+        <LibraryControls
+          filterBy={filterBy}
+          viewMode={viewMode}
+          onFilterChange={handleFilterChange}
+          onViewModeChange={setViewMode}
+          totalCount={projects.length}
+        />
+        <div className="flex flex-col items-center justify-center py-16">
+          <div className="w-24 h-24 bg-orange/10 rounded flex items-center justify-center mb-6">
+            <svg className="w-12 h-12 text-orange" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold mb-2">No favorites yet</h2>
+          <p className="text-muted text-center max-w-md mb-6">
+            Click the star icon on any project to add it to your favorites for quick access.
+          </p>
+          <button
+            onClick={() => setFilterBy("all")}
+            className="px-6 py-3 bg-accent text-white font-semibold rounded shadow-md hover:shadow-lg hover:bg-accent/90 active:scale-[0.98] transition-all"
+          >
+            View All Projects
+          </button>
+        </div>
+        {/* Toast Notification */}
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       {/* Controls */}
       <LibraryControls
-        sortBy={sortBy}
+        filterBy={filterBy}
         viewMode={viewMode}
-        onSortChange={handleSortChange}
+        onFilterChange={handleFilterChange}
         onViewModeChange={setViewMode}
-        totalCount={projects.length}
+        totalCount={filteredProjects.length}
       />
 
       {/* Project Grid/List */}
@@ -144,26 +216,60 @@ export default function DesignsContent({ initialProjects }: DesignsContentProps)
           ? "grid grid-cols-2 lg:grid-cols-4 gap-4"
           : "space-y-4"
       }>
-        {projects.map((project, index) => (
+        {filteredProjects.map((project, index) => (
           viewMode === "grid" ? (
-            <ProjectCard key={project.id} project={project} priority={index < 4} />
+            <ProjectCard 
+              key={project.id} 
+              project={project} 
+              priority={index < 4}
+              isFavorite={favorites.has(project.id)}
+              onFavoriteToggle={toggleFavorite}
+            />
           ) : (
-            <ProjectListItem key={project.id} project={project} />
+            <ProjectListItem 
+              key={project.id} 
+              project={project}
+              isFavorite={favorites.has(project.id)}
+              onFavoriteToggle={toggleFavorite}
+            />
           )
         ))}
       </div>
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </>
   );
 }
 
 // List view item component
-function ProjectListItem({ project }: { project: Project }) {
+function ProjectListItem({ 
+  project, 
+  isFavorite, 
+  onFavoriteToggle 
+}: { 
+  project: Project; 
+  isFavorite?: boolean;
+  onFavoriteToggle?: (projectId: string) => void;
+}) {
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onFavoriteToggle?.(project.id);
+  };
+
   return (
     <Link
       href={`/designs/${project.id}`}
       className="
         group flex items-center gap-4 p-4
-        bg-white rounded border border-border shadow-sm
+        bg-surface rounded border border-border shadow-sm
         hover:border-accent/30 hover:shadow-md
         transition-all duration-200
       "
@@ -179,11 +285,34 @@ function ProjectListItem({ project }: { project: Project }) {
         />
       </div>
       <div className="flex-1 min-w-0">
-        <h3 className="font-semibold truncate text-primary">{project.name}</h3>
+        <h3 className="font-semibold truncate text-foreground">{project.name}</h3>
         <p className="text-sm text-muted">
           {new Date(project.created_at).toLocaleDateString()} • {project.variants?.length || 0} variants
         </p>
       </div>
+      {/* Favorite Button */}
+      {onFavoriteToggle && (
+        <button
+          onClick={handleFavoriteClick}
+          className={`
+            p-2 rounded transition-all duration-200
+            ${isFavorite 
+              ? 'text-orange' 
+              : 'text-muted hover:text-orange opacity-0 group-hover:opacity-100'
+            }
+          `}
+          title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+        >
+          <svg 
+            className="w-5 h-5" 
+            fill={isFavorite ? 'currentColor' : 'none'}
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+          </svg>
+        </button>
+      )}
       <svg className="w-5 h-5 text-muted group-hover:text-accent transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
       </svg>

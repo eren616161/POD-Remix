@@ -1,14 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createBrowserClient } from "@supabase/ssr";
+
+const PENDING_PROJECT_KEY = "pod-remix-pending-project";
+
+interface PendingProject {
+  originalImage: string;
+  variants: Array<{
+    id: number;
+    strategy: string;
+    design: {
+      imageData: string;
+      imageUrl?: string;
+    };
+    colorClassification?: {
+      recommendedBackground: 'light' | 'dark';
+    };
+  }>;
+  createdAt: string;
+}
 
 interface SaveDesignsCTAProps {
   onSuccess?: () => void;
   variant?: "default" | "compact";
+  pendingProjectData?: PendingProject | null;
 }
 
-export default function SaveDesignsCTA({ onSuccess, variant = "default" }: SaveDesignsCTAProps) {
+export default function SaveDesignsCTA({ onSuccess, variant = "default", pendingProjectData }: SaveDesignsCTAProps) {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
@@ -19,6 +38,13 @@ export default function SaveDesignsCTA({ onSuccess, variant = "default" }: SaveD
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
+  // Store pending project data whenever it changes
+  useEffect(() => {
+    if (pendingProjectData) {
+      localStorage.setItem(PENDING_PROJECT_KEY, JSON.stringify(pendingProjectData));
+    }
+  }, [pendingProjectData]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -28,10 +54,15 @@ export default function SaveDesignsCTA({ onSuccess, variant = "default" }: SaveD
     setErrorMessage("");
 
     try {
+      // Make sure pending project is stored before sending magic link
+      if (pendingProjectData) {
+        localStorage.setItem(PENDING_PROJECT_KEY, JSON.stringify(pendingProjectData));
+      }
+
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?transfer=true`,
         },
       });
 

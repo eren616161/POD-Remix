@@ -39,6 +39,20 @@
   --font-family-mono: var(--font-fira-code), 'Fira Code', ui-monospace, monospace;
 }
 
+/* Dark theme variables */
+.dark {
+  --color-primary: #f1f5f9;
+  --color-accent: #14b8a6;
+  --color-background: #0f172a;
+  --color-foreground: #f8fafc;
+  --color-surface: #1e293b;
+  --color-secondary: #334155;
+  --color-muted: #94a3b8;
+  --color-border: #475569;
+  --color-destructive: #ef4444;
+  --color-ring: #e2e8f0;
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
@@ -46,6 +60,10 @@
 
   html {
     color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 
   body {
@@ -302,7 +320,7 @@
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(0.25rem);
   }
   to {
     opacity: 1;
@@ -313,7 +331,7 @@
 @keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-0.25rem);
   }
   to {
     opacity: 1;
@@ -337,7 +355,7 @@
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-4px);
+    transform: translateY(-0.25rem);
   }
 }
 

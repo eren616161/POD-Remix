@@ -34,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`light ${outfit.variable} ${firaCode.variable}`}>
+    <html lang="en" className={`${outfit.variable} ${firaCode.variable}`} suppressHydrationWarning>
       <body className="antialiased pt-16">
         <AuthProvider>
           <Header />
