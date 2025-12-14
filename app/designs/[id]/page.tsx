@@ -9,6 +9,7 @@ import RegenerateConfirmModal from "@/components/RegenerateConfirmModal";
 import VariantCard from "@/components/VariantCard";
 import Toast from "@/components/Toast";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import ProductCreationModal from "@/components/ProductCreationModal";
 import { useAuth } from "@/components/AuthProvider";
 import { generateDownloadFileName, downloadImage } from "@/lib/download-utils";
 
@@ -18,6 +19,7 @@ interface Variant {
   batch_number?: number;
   strategy: string;
   image_url: string;
+  thumbnail_url?: string | null;
   recommended_background: 'light' | 'dark';
 }
 
@@ -39,6 +41,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
   const [project, setProject] = useState<Project | null>(null);
+  const [productCounts, setProductCounts] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedVariants, setSelectedVariants] = useState<Set<string>>(new Set());
@@ -52,6 +55,14 @@ export default function ProjectDetailPage({ params }: PageProps) {
   // Track which batch is currently selected/viewed
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   
+  // Printify integration state
+  const [isPrintifyConnected, setIsPrintifyConnected] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [selectedVariantForProduct, setSelectedVariantForProduct] = useState<{
+    id: string;
+    imageUrl: string;
+  } | null>(null);
+  
   // Ref to prevent duplicate fetches
   const hasFetchedRef = useRef(false);
   const lastFetchedIdRef = useRef<string | null>(null);
@@ -62,6 +73,23 @@ export default function ProjectDetailPage({ params }: PageProps) {
       router.push("/?signin=true");
     }
   }, [user, authLoading, router]);
+
+  // Check Printify connection status
+  useEffect(() => {
+    if (user) {
+      checkPrintifyStatus();
+    }
+  }, [user]);
+
+  const checkPrintifyStatus = async () => {
+    try {
+      const response = await fetch("/api/integrations/printify/status");
+      const data = await response.json();
+      setIsPrintifyConnected(data.connected);
+    } catch (error) {
+      console.error("Failed to check Printify status:", error);
+    }
+  };
 
   // Fetch project - use useCallback to prevent recreation on every render
   const fetchProject = useCallback(async (forceRefresh = false) => {
@@ -78,6 +106,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
       if (response.ok) {
         const data = await response.json();
         setProject(data.project);
+        setProductCounts(data.productCounts || {});
         hasFetchedRef.current = true;
         lastFetchedIdRef.current = id;
       } else if (response.status === 404) {
@@ -203,6 +232,33 @@ export default function ProjectDetailPage({ params }: PageProps) {
   const handleBulkDelete = async () => {
     // For now, just show a toast - actual implementation would require API support
     setToast({ message: "Bulk delete coming soon", type: "info" });
+  };
+
+  const handleCreateProduct = (variantId: string, imageUrl: string) => {
+    if (!isPrintifyConnected) {
+      setToast({ 
+        message: "Connect Printify in Settings to create products", 
+        type: "info" 
+      });
+      return;
+    }
+    setSelectedVariantForProduct({ id: variantId, imageUrl });
+    setShowProductModal(true);
+  };
+
+  const handleProductCreated = (productId: string) => {
+    setToast({ 
+      message: "🎉 Product created and published to Shopify!", 
+      type: "success" 
+    });
+    if (selectedVariantForProduct) {
+      setProductCounts(prev => ({
+        ...prev,
+        [selectedVariantForProduct.id]: (prev[selectedVariantForProduct.id] || 0) + 1,
+      }));
+    }
+    setShowProductModal(false);
+    setSelectedVariantForProduct(null);
   };
 
   const handleRegenerate = async () => {
@@ -549,12 +605,15 @@ export default function ProjectDetailPage({ params }: PageProps) {
                   key={variant.id}
                   variant={variant}
                   projectId={project.id}
+                  productCount={productCounts[variant.id] ?? 0}
                   designName={project.name}
                   isSelectionMode={isSelectionMode}
                   isSelected={selectedVariants.has(variant.id)}
                   onSelectionChange={handleSelectionChange}
                   isFavorite={favorites.has(variant.id)}
                   onFavoriteToggle={handleFavoriteToggle}
+                  isPrintifyConnected={isPrintifyConnected}
+                  onCreateProduct={handleCreateProduct}
                 />
               ))}
             </div>
@@ -690,6 +749,21 @@ export default function ProjectDetailPage({ params }: PageProps) {
         isRegenerating={isRegenerating}
         currentBatchCount={sortedBatches.length}
       />
+
+      {/* Product Creation Modal */}
+      {selectedVariantForProduct && (
+        <ProductCreationModal
+          isOpen={showProductModal}
+          onClose={() => {
+            setShowProductModal(false);
+            setSelectedVariantForProduct(null);
+          }}
+          variantId={selectedVariantForProduct.id}
+          designUrl={selectedVariantForProduct.imageUrl}
+          designName={project.name}
+          onSuccess={handleProductCreated}
+        />
+      )}
     </main>
   );
 }

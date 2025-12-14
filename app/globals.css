@@ -30,9 +30,14 @@
   --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
   --shadow-card: 0px 4px 8px -2px hsl(0 0% 0% / 0.10), 0px 2px 4px -3px hsl(0 0% 0% / 0.10);
   
-  /* Geometry - Rounded corners */
+  /* Geometry - Rounded corners - All standardized to 0.25rem */
   --radius: 0.25rem;
-  --radius-lg: 1.25rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.25rem;
+  --radius-2xl: 0.25rem;
+  --radius-3xl: 0.25rem;
   
   /* Typography - Using next/font CSS variables */
   --font-family-sans: var(--font-outfit), 'Outfit', system-ui, sans-serif;
@@ -87,6 +92,35 @@
 }
 
 @layer utilities {
+  /* Border Radius Standardization - All elements use 0.25rem */
+  .rounded {
+    border-radius: 0.25rem;
+  }
+  
+  .rounded-sm {
+    border-radius: 0.25rem;
+  }
+  
+  .rounded-md {
+    border-radius: 0.25rem;
+  }
+  
+  .rounded-lg {
+    border-radius: 0.25rem;
+  }
+  
+  .rounded-xl {
+    border-radius: 0.25rem;
+  }
+  
+  .rounded-2xl {
+    border-radius: 0.25rem;
+  }
+  
+  .rounded-3xl {
+    border-radius: 0.25rem;
+  }
+
   /* Smooth transitions for interactions */
   .transition-smooth {
     transition: all 150ms ease-out;
@@ -150,7 +184,7 @@
   
   .scrollbar-custom::-webkit-scrollbar-thumb {
     background-color: var(--color-muted);
-    border-radius: 3px;
+    border-radius: 0.25rem;
   }
   
   /* Checkered pattern for transparent background preview */
@@ -289,6 +323,23 @@
     animation: arrowPulse 2s ease-in-out infinite;
   }
   
+  /* Bottom sheet modal animations - Airbnb style */
+  .animate-slide-up-sheet {
+    animation: slideUpSheet 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  .animate-slide-down-sheet {
+    animation: slideDownSheet 0.3s cubic-bezier(0.4, 0, 1, 1) forwards;
+  }
+  
+  .animate-fade-in-backdrop {
+    animation: fadeInBackdrop 0.3s ease-out;
+  }
+  
+  .animate-fade-out-backdrop {
+    animation: fadeOutBackdrop 0.3s ease-out forwards;
+  }
+  
   /* Responsive spacing scale */
   .space-responsive {
     padding: 1rem;
@@ -325,6 +376,43 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Bottom sheet modal animation - Airbnb style */
+@keyframes slideUpSheet {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInBackdrop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideDownSheet {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes fadeOutBackdrop {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 

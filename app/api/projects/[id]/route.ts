@@ -38,7 +38,27 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
-    return NextResponse.json({ project });
+    // Gather product counts per variant from published_products
+    let productCounts: Record<string, number> = {};
+    const variantIds = (project.variants || []).map((variant: { id: string }) => variant.id).filter(Boolean);
+
+    if (variantIds.length > 0) {
+      const { data: publishedProducts } = await supabase
+        .from('published_products')
+        .select('variant_id')
+        .eq('user_id', user.id)
+        .in('variant_id', variantIds);
+
+      if (publishedProducts) {
+        productCounts = publishedProducts.reduce((acc: Record<string, number>, item) => {
+          const variantId = item.variant_id as string;
+          acc[variantId] = (acc[variantId] || 0) + 1;
+          return acc;
+        }, {});
+      }
+    }
+
+    return NextResponse.json({ project, productCounts });
   } catch (error) {
     console.error('Get project error:', error);
     return NextResponse.json(

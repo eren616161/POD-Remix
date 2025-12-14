@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import dynamic from "next/dynamic";
 import UploadSection from "@/components/UploadSection";
 import RemixGallery from "@/components/RemixGallery";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -22,19 +21,10 @@ import { generateDownloadFileName, downloadImage } from "@/lib/download-utils";
 
 // Storage keys for cross-tab communication
 const TRANSFER_COMPLETED_KEY = "pod-remix-transfer-completed";
-
-// Lazy load DesignEditor - only loaded when user selects a variant to edit
-// This reduces initial bundle size significantly (600+ lines component)
-const DesignEditor = dynamic(
-  () => import("@/components/DesignEditor"),
-  { 
-    loading: () => <LoadingSpinner message="Loading editor..." />,
-    ssr: false 
-  }
-);
+const PENDING_PROJECT_KEY = "pod-remix-pending-project";
 
 // State types
-type AppState = "idle" | "uploading" | "processing" | "complete" | "editing" | "error";
+type AppState = "idle" | "uploading" | "processing" | "complete" | "error";
 
 interface DesignVersion {
   imageData: string;
@@ -69,7 +59,6 @@ function HomeContent() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
   const [variants, setVariants] = useState<Variant[]>([]);
-  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [analysis, setAnalysis] = useState<DesignAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
@@ -79,6 +68,7 @@ function HomeContent() {
   // Track saved project for regeneration
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
   const [currentBatch, setCurrentBatch] = useState(1);
+  const [projectName, setProjectName] = useState<string>('POD_Remix');
   
   // Free tier usage tracking (only for non-authenticated users)
   const [remainingGenerations, setRemainingGenerations] = useState<number>(getDailyLimit());
@@ -147,6 +137,13 @@ function HomeContent() {
         return;
       }
 
+      // Check if there's a pending project - guest is in the process of signing up
+      const pendingProject = localStorage.getItem(PENDING_PROJECT_KEY);
+      if (pendingProject) {
+        console.log('Pending project exists, skipping auto-save - transfer page will handle it');
+        return;
+      }
+
       saveAttemptedRef.current = true;
 
       try {
@@ -156,17 +153,18 @@ function HomeContent() {
           body: JSON.stringify({ imageData: uploadPreview }),
         });
 
-        let projectName = `Design ${new Date().toLocaleDateString()}`;
+        let generatedName = `Design ${new Date().toLocaleDateString()}`;
         if (nameResponse.ok) {
           const { name } = await nameResponse.json();
-          projectName = name;
+          generatedName = name;
         }
+        setProjectName(generatedName);
 
         const result = await saveProject({
           userId: user.id,
           originalImage: uploadPreview,
           variants,
-          projectName,
+          projectName: generatedName,
         });
 
         if (result.success && result.projectId) {
@@ -253,21 +251,17 @@ function HomeContent() {
     }
   };
 
-  const handleSelect = (variant: Variant | null) => {
-    setSelectedVariant(variant);
-  };
-
   const handleReset = () => {
     setState("idle");
     setUploadedFile(null);
     setUploadPreview(null);
     setVariants([]);
-    setSelectedVariant(null);
     setAnalysis(null);
     setError(null);
     saveAttemptedRef.current = false;
     setSavedProjectId(null);
     setCurrentBatch(1);
+    setProjectName('POD_Remix');
   };
 
   // Regenerate variants for an existing project (adds new batch)
@@ -324,32 +318,14 @@ function HomeContent() {
     }
   };
 
-  const handleOpenEditor = (variant?: Variant) => {
-    const variantToEdit = variant || selectedVariant;
-    if (!variantToEdit) return;
-    setSelectedVariant(variantToEdit);
-    setState("editing");
-  };
-
-  const handleEditorComplete = () => {
-    setState("complete");
-  };
-
-  const handleCancelEdit = () => {
-    setState("complete");
-  };
-
-  const handleDownload = async (variant?: Variant) => {
-    const variantToDownload = variant || selectedVariant;
-    if (!variantToDownload) return;
-
+  const handleDownload = async (variant: Variant) => {
     try {
-      const imageUrl = variantToDownload.design.imageUrl || variantToDownload.design.imageData;
+      const imageUrl = variant.design.imageUrl || variant.design.imageData;
       const filename = generateDownloadFileName({
-        designName: 'POD_Remix',
+        designName: projectName,
         batchNumber: currentBatch,
-        variantNumber: variantToDownload.id,
-        strategy: variantToDownload.strategy,
+        variantNumber: variant.id,
+        strategy: variant.strategy,
         style: 'Original'
       });
       
@@ -365,8 +341,8 @@ function HomeContent() {
     <>
       <main className="min-h-[calc(100vh-4rem)] p-4 md:p-8 pt-4 flex flex-col">
         <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col">
-          {/* Header - hidden when editing or processing to focus attention on the animation */}
-          {state !== "editing" && state !== "processing" && (
+          {/* Header - hidden while processing */}
+          {state !== "processing" && (
             <div className="text-center mb-6 transition-state">
               {state === "complete" ? (
                 <>
@@ -374,7 +350,7 @@ function HomeContent() {
                     Your Variants Are Ready
                   </h1>
                   <p className="text-base text-muted max-w-lg mx-auto">
-                    Click any design to customize colors and placement — then download
+                    Click any design to download your print-ready PNGs instantly
                   </p>
                 </>
               ) : (
@@ -424,8 +400,6 @@ function HomeContent() {
                 <div className="py-6 md:py-10">
                   <RemixGallery
                     variants={variants}
-                    onSelect={handleSelect}
-                    onEdit={handleOpenEditor}
                     onDownload={handleDownload}
                   />
                 </div>
@@ -468,16 +442,6 @@ function HomeContent() {
                   </div>
                 </div>
               </div>
-            )}
-
-            {/* State: Editing */}
-            {state === "editing" && selectedVariant && (
-              <DesignEditor
-                variant={selectedVariant}
-                mockupType={selectedVariant.colorClassification?.recommendedBackground || 'light'}
-                onSave={handleEditorComplete}
-                onCancel={handleCancelEdit}
-              />
             )}
 
             {/* State: Error */}

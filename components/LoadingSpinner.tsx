@@ -88,7 +88,7 @@ export default function LoadingSpinner({
   const [currentStage, setCurrentStage] = useState(0);
 
   // Default message with dynamic variant count
-  const displayMessage = message || `Creating ${variantCount} unique variants`;
+  const displayMessage = message || `Creating ${variantCount} design variations...`;
 
   // Rotate tips every 5 seconds
   useEffect(() => {
@@ -264,8 +264,7 @@ export default function LoadingSpinner({
                 }}
               />
             </div>
-            <div className="flex justify-between items-center text-xs text-muted">
-              <span>Stage {currentStage + 1} of 4</span>
+            <div className="flex justify-end items-center text-xs text-muted">
               <span className="font-medium text-accent">{Math.round(progress)}%</span>
             </div>
           </div>

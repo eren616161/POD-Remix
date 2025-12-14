@@ -1,9 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { useState } from "react";
-import { generateDownloadFileName, downloadImage } from "@/lib/download-utils";
 
 // 4 distinct background colors - T-shirt simulation (POD product colors)
 const variantBackgrounds = {
@@ -38,6 +35,9 @@ interface VariantCardProps {
   onSelectionChange?: (variantId: string, selected: boolean) => void;
   isFavorite?: boolean;
   onFavoriteToggle?: (variantId: string) => void;
+  isPrintifyConnected?: boolean;
+  onCreateProduct?: (variantId: string, imageUrl: string) => void;
+  productCount?: number;
 }
 
 export default function VariantCard({
@@ -49,9 +49,10 @@ export default function VariantCard({
   onSelectionChange,
   isFavorite = false,
   onFavoriteToggle,
+  isPrintifyConnected = false,
+  onCreateProduct,
+  productCount,
 }: VariantCardProps) {
-  const [isDownloading, setIsDownloading] = useState(false);
-  
   // Each variant gets a unique shade based on its number (1-4)
   const isDarkBg = variant.recommended_background === 'dark';
   const bgIndex = (variant.variant_number - 1) % 4;
@@ -60,34 +61,13 @@ export default function VariantCard({
   // Dynamic star icon color based on background (no background, just icon)
   const starColor = isDarkBg ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800';
 
-  // Download variant image
-  const handleDownload = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (isDownloading) return;
-    
-    setIsDownloading(true);
-    try {
-      const filename = generateDownloadFileName({
-        designName: designName || 'Design',
-        batchNumber: variant.batch_number || 1,
-        variantNumber: variant.variant_number,
-        strategy: variant.strategy,
-        style: 'Original'
-      });
-      
-      await downloadImage(variant.image_url, filename);
-    } catch (error) {
-      console.error('Download error:', error);
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
   const handleCardClick = () => {
     if (isSelectionMode && onSelectionChange) {
       onSelectionChange(variant.id, !isSelected);
+      return;
+    }
+    if (onCreateProduct) {
+      onCreateProduct(variant.id, variant.image_url);
     }
   };
 
@@ -106,6 +86,14 @@ export default function VariantCard({
     }
   };
 
+  const handleCreateProduct = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onCreateProduct) {
+      onCreateProduct(variant.id, variant.image_url);
+    }
+  };
+
   return (
     <div
       onClick={handleCardClick}
@@ -119,11 +107,10 @@ export default function VariantCard({
       `}
     >
       {/* Image - Compact & Clickable */}
-      <Link
-        href={`/designs/${projectId}/edit/${variant.id}`}
+      <div
         className={`aspect-[3/2] ${bgClass} relative overflow-hidden block cursor-pointer`}
         style={getDotPatternStyle(isDarkBg)}
-        onClick={(e) => isSelectionMode && e.preventDefault()}
+        onClick={handleCardClick}
       >
         <Image
           src={variant.thumbnail_url || variant.image_url}
@@ -180,41 +167,40 @@ export default function VariantCard({
             </svg>
           </button>
         )}
-      </Link>
+      </div>
 
       {/* Card Footer - dark mode compatible */}
       <div className="px-2.5 py-2 flex items-center justify-between bg-surface">
-        {/* Strategy Name as Title */}
-        <h3 className="text-sm font-semibold text-primary truncate pr-2">{variant.strategy}</h3>
-        
+        {/* Strategy Name and Product Count */}
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-primary truncate pr-2">{variant.strategy}</h3>
+          {productCount !== undefined && (
+            <div className="flex items-center gap-1 text-[11px] text-muted mt-0.5">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18" />
+              </svg>
+              <span className="truncate">
+                {productCount} {productCount === 1 ? 'product' : 'products'}
+              </span>
+            </div>
+          )}
+        </div>
+
         {!isSelectionMode && (
-          <div className="flex items-center gap-0.5">
-            {/* Download Button */}
-            <button
-              onClick={handleDownload}
-              disabled={isDownloading}
-              className="w-7 h-7 rounded text-muted hover:text-accent hover:bg-accent/5 flex items-center justify-center transition-all duration-200 disabled:opacity-50"
-              title="Download"
-            >
-              {isDownloading ? (
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          <div className="flex items-center">
+            {/* Create Product Button - Primary CTA */}
+            {onCreateProduct && (
+              <button
+                onClick={handleCreateProduct}
+                className="px-3 h-7 bg-[#29b474] text-white text-xs font-semibold rounded hover:bg-[#24a066] active:scale-[0.98] transition-all duration-200 flex items-center gap-1.5"
+                title="Create Product"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-              )}
-            </button>
-            
-            {/* Edit Button */}
-            <Link
-              href={`/designs/${projectId}/edit/${variant.id}`}
-              className="px-2 h-7 text-accent hover:text-accent/80 text-sm font-semibold rounded hover:bg-accent/5 active:scale-[0.98] transition-all duration-200 flex items-center"
-            >
-              Edit
-            </Link>
+                Create
+              </button>
+            )}
           </div>
         )}
       </div>

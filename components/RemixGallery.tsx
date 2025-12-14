@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { generateDownloadFileName, downloadImage } from "@/lib/download-utils";
 
 interface DesignVersion {
   imageData: string;
@@ -23,12 +22,17 @@ interface Variant {
 
 interface RemixGalleryProps {
   variants: Variant[];
-  onSelect?: (variant: Variant | null) => void;
-  onEdit?: (variant: Variant) => void;
   onDownload?: (variant: Variant) => void | Promise<void>;
+  onCreateProduct?: (variant: Variant) => void;
+  isPrintifyConnected?: boolean;
 }
 
-export default function RemixGallery({ variants, onEdit, onDownload }: RemixGalleryProps) {
+export default function RemixGallery({ 
+  variants, 
+  onDownload,
+  onCreateProduct,
+  isPrintifyConnected = false,
+}: RemixGalleryProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -71,8 +75,9 @@ export default function RemixGallery({ variants, onEdit, onDownload }: RemixGall
           <VariantCard
             key={variant.id}
             variant={variant}
-            onEdit={onEdit}
             onDownload={onDownload}
+            onCreateProduct={onCreateProduct}
+            isPrintifyConnected={isPrintifyConnected}
           />
         ))}
       </div>
@@ -95,8 +100,9 @@ export default function RemixGallery({ variants, onEdit, onDownload }: RemixGall
             >
               <VariantCard
                 variant={variant}
-                onEdit={onEdit}
                 onDownload={onDownload}
+                onCreateProduct={onCreateProduct}
+                isPrintifyConnected={isPrintifyConnected}
               />
             </div>
           ))}
@@ -174,13 +180,12 @@ const getDotPatternStyle = (isDark: boolean): React.CSSProperties => ({
 
 interface VariantCardProps {
   variant: Variant;
-  onEdit?: (variant: Variant) => void;
   onDownload?: (variant: Variant) => void | Promise<void>;
+  onCreateProduct?: (variant: Variant) => void;
+  isPrintifyConnected?: boolean;
 }
 
-function VariantCard({ variant, onEdit, onDownload }: VariantCardProps) {
-  const [isDownloading, setIsDownloading] = useState(false);
-  
+function VariantCard({ variant, onDownload, onCreateProduct, isPrintifyConnected }: VariantCardProps) {
   const recommendedBg = variant.colorClassification?.recommendedBackground ?? "light";
   const isDarkBg = recommendedBg === "dark";
   
@@ -188,45 +193,23 @@ function VariantCard({ variant, onEdit, onDownload }: VariantCardProps) {
   const bgIndex = (variant.id - 1) % 4;
   const bgClass = variantBackgrounds[isDarkBg ? 'dark' : 'light'][bgIndex];
 
-  const handleDownload = async (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleCreateClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    if (isDownloading) return;
-    
-    setIsDownloading(true);
-    try {
-      if (onDownload) {
-        await onDownload(variant);
-      } else {
-        // Default download behavior using standardized naming
-        const imageUrl = variant.design.imageUrl || variant.design.imageData;
-        const filename = generateDownloadFileName({
-          designName: 'POD_Remix',
-          batchNumber: 1,
-          variantNumber: variant.id,
-          strategy: variant.strategy,
-          style: 'Original'
-        });
-        
-        await downloadImage(imageUrl, filename);
-      }
-    } catch (error) {
-      console.error('Download error:', error);
-    } finally {
-      setIsDownloading(false);
+    if (onCreateProduct) {
+      onCreateProduct(variant);
     }
   };
 
-  const handleCardClick = () => {
-    if (onEdit) {
-      onEdit(variant);
+  const handleDownloadClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDownload) {
+      onDownload(variant);
     }
   };
 
   return (
     <div
-      onClick={handleCardClick}
+      onClick={onDownload ? () => onDownload(variant) : undefined}
       className="bg-white dark:bg-gray-800 rounded-sm overflow-hidden shadow-sm border border-border group transition-all duration-200 hover:shadow-md hover:ring-1 hover:ring-accent/20 hover:-translate-y-0.5 cursor-pointer"
     >
       {/* Image - Square - Clickable */}
@@ -251,36 +234,26 @@ function VariantCard({ variant, onEdit, onDownload }: VariantCardProps) {
         {/* Strategy Name as Title */}
         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate pr-2">{variant.strategy}</h3>
         
-        <div className="flex items-center gap-1.5">
-          {/* Download Button - ghost style */}
-          <button
-            onClick={handleDownload}
-            disabled={isDownloading}
-            className="w-7 h-7 rounded-sm border border-border hover:border-accent/30 hover:bg-accent/5 flex items-center justify-center transition-all duration-200 disabled:opacity-50"
-            title="Download"
-          >
-            {isDownloading ? (
-              <svg className="w-3.5 h-3.5 animate-spin text-muted" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+        <div className="flex items-center gap-1">
+          {/* Create Product Button - Primary if Printify connected */}
+          {isPrintifyConnected && onCreateProduct ? (
+            <button
+              onClick={handleCreateClick}
+              className="px-2.5 h-7 bg-[#29b474] text-white text-xs font-medium rounded-sm shadow-sm hover:bg-[#24a066] active:scale-[0.98] transition-all duration-200 flex items-center gap-1"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-            ) : (
-              <svg className="w-3.5 h-3.5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-            )}
-          </button>
-          
-          {/* Edit Button - Primary accent style */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onEdit) onEdit(variant);
-            }}
-            className="px-3 h-7 bg-accent text-white text-xs font-medium rounded-sm shadow-cyan-glow hover:shadow-cyan-glow-hover hover:bg-accent/90 active:scale-[0.98] transition-all duration-200 flex items-center"
-          >
-            Edit
-          </button>
+              Create
+            </button>
+          ) : onDownload ? (
+            <button
+              onClick={handleDownloadClick}
+              className="px-3 h-7 bg-accent text-white text-xs font-medium rounded-sm shadow-cyan-glow hover:shadow-cyan-glow-hover hover:bg-accent/90 active:scale-[0.98] transition-all duration-200 flex items-center"
+            >
+              Download
+            </button>
+          ) : null}
         </div>
       </div>
     </div>
